@@ -212,7 +212,7 @@ PHP_INI_END()
 /* }}} */
 
 PHP_INI_BEGIN()
-    PHP_INI_ENTRY("pinyin.dir", "/tmp/mypinyin/", PHP_INI_SYSTEM, NULL)
+    PHP_INI_ENTRY("pinyin.dir", "", PHP_INI_SYSTEM, NULL)
 PHP_INI_END()
 
 /* Remove the following function when you have successfully modified config.m4
@@ -230,6 +230,12 @@ PHP_FUNCTION(chinese_to_pinyin)
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &arg, &arg_len, &l) == FAILURE) {
         return;
+    }
+
+    if(pinyin_globals.can_access == false)
+    {
+        php_error(E_WARNING, "拼音转汉字初始化加载配置文件失败，转化失败！");
+        RETURN_FALSE;
     }
 
 	int alloc_len = arg_len * 4 + 1;
@@ -345,10 +351,20 @@ static void php_pinyin_init_globals(zend_pinyin_globals *pinyin_globals)
 PHP_MINIT_FUNCTION(pinyin)
 {
     REGISTER_INI_ENTRIES();
+    pinyin_globals.can_access = false;
     pinyin_globals.myList = pinyin_globals.myLast = (MyList *)malloc(sizeof(MyList));
+    pinyin_globals.myList->next = NULL;
     pinyin_globals.mySurnameList = pinyin_globals.mySurnameLast = (MyList *)malloc(sizeof(MyList));
+    pinyin_globals.mySurnameList->next = NULL;
     const char *pinyindir = INI_STR("pinyin.dir");
-    scan_words_from_dir(pinyindir);
+
+    if(strlen(pinyindir) == 0 || access(pinyindir, 0))
+    {
+        php_error(E_WARNING, "汉字转拼音配置文件夹【%s】访问不了，或者未配置文件夹", pinyindir);
+    }else {
+        scan_words_from_dir(pinyindir);
+        pinyin_globals.can_access = true;
+    }
 
     //注册常量
     REGISTER_LONG_CONSTANT("PINYIN_NONE", PINYIN_NONE, CONST_PERSISTENT | CONST_CS);

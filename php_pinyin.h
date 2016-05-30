@@ -70,6 +70,7 @@ ZEND_BEGIN_MODULE_GLOBALS(pinyin)
     MyList *mySurnameList;
     MyList *mySurnameLast;
     MyTone *myTones;
+    zend_bool can_access;
 ZEND_END_MODULE_GLOBALS(pinyin)
 
 //calculate hash by string and keyLen
