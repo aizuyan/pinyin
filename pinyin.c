@@ -37,7 +37,11 @@ static MyTone punctuations[MY_TRIM_NUM] = {
     {"？", "?", 0},
     {"！", "!", 0},
     {"：", ":", 0},
-    {"；", ";", 0}
+    {"；", ";", 0},
+    {"“", "\"", 0},
+    {"”", "\"", 0},
+    {"‘", "'", 0},
+    {"’", "'", 0}
 };
 
 static MyTone _myTones[MY_TONES_NUM] = {
@@ -238,19 +242,12 @@ PHP_FUNCTION(chinese_to_pinyin)
     MyList *p_surname = pinyin_globals.mySurnameList->next;
 
     //去掉标点符号
-    if(l & (PINYIN_TRIM|PINYIN_FORMAT))
+    if(l & (PINYIN_TRIM|PINYIN_FORMAT_EN|PINYIN_FORMAT))
     {
         int j = 0;
         for(; j<MY_TRIM_NUM; j++)
         {
-            if(l & PINYIN_TRIM)
-            {
-                memset(ret, '\0', alloc_len);
-                str_replace(punctuations[j].key, "", oldMessage, ret, false);   
-                memset(ret, '\0', alloc_len);
-                str_replace(punctuations[j].val, "", oldMessage, ret, false);   
-            }
-            if(l & PINYIN_FORMAT)
+            if(l & PINYIN_FORMAT)   //仅仅格式化
             {
                 memset(char_str, '\0', MAX_PUNCTUATION_SIZE);
                 strcat(char_str, "\t");
@@ -262,6 +259,24 @@ PHP_FUNCTION(chinese_to_pinyin)
                 strcat(char_str, punctuations[j].val);
                 memset(ret, '\0', alloc_len);
                 str_replace(punctuations[j].val, char_str, oldMessage, ret, false);   
+            }
+            else if(l & PINYIN_FORMAT_EN)   //汉字符号转为英文符号
+            {
+                memset(char_str, '\0', MAX_PUNCTUATION_SIZE);
+                strcat(char_str, punctuations[j].val);
+                memset(ret, '\0', alloc_len);
+                str_replace(punctuations[j].key, char_str, oldMessage, ret, false);   
+                memset(char_str, '\0', MAX_PUNCTUATION_SIZE);
+                strcat(char_str, "\t");
+                strcat(char_str, punctuations[j].val);
+                memset(ret, '\0', alloc_len);
+                str_replace(punctuations[j].val, char_str, oldMessage, ret, false);   
+            }else if(l & PINYIN_TRIM)   //去除标点符号
+            {
+                memset(ret, '\0', alloc_len);
+                str_replace(punctuations[j].key, "", oldMessage, ret, false);   
+                memset(ret, '\0', alloc_len);
+                str_replace(punctuations[j].val, "", oldMessage, ret, false);   
             }
         }
     }
@@ -305,8 +320,6 @@ PHP_FUNCTION(chinese_to_pinyin)
 	{
 		add_next_index_string(return_value, item, 1);
 	}
-
-//	RETURN_STRING(ret, 1);
 }
 /* }}} */
 /* The previous line is meant for vim and emacs, so it can correctly fold and 
@@ -342,6 +355,7 @@ PHP_MINIT_FUNCTION(pinyin)
     REGISTER_LONG_CONSTANT("PINYIN_UNICODE", PINYIN_UNICODE, CONST_PERSISTENT | CONST_CS);
     REGISTER_LONG_CONSTANT("PINYIN_ISNAME", PINYIN_ISNAME, CONST_PERSISTENT | CONST_CS);
     REGISTER_LONG_CONSTANT("PINYIN_TRIM", PINYIN_TRIM, CONST_PERSISTENT | CONST_CS);
+    REGISTER_LONG_CONSTANT("PINYIN_FORMAT_EN", PINYIN_FORMAT_EN, CONST_PERSISTENT | CONST_CS);
     REGISTER_LONG_CONSTANT("PINYIN_FORMAT", PINYIN_FORMAT, CONST_PERSISTENT | CONST_CS);
 
 	/* If you have INI entries, uncomment these lines 
@@ -369,8 +383,20 @@ PHP_MSHUTDOWN_FUNCTION(pinyin)
 		free(p);
 		p = tmp;
 	}
-	
 
+    p = pinyin_globals.mySurnameList->next;
+    tmp = p;
+    while(p != NULL)
+    {
+        tmp = p->next;
+		free(p->key);
+		free(p->val);
+		free(p);
+		p = tmp;
+    }
+    free(pinyin_globals.myList);
+    free(pinyin_globals.mySurnameList);
+	
 	return SUCCESS;
 }
 /* }}} */
