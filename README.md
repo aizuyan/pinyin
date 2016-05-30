@@ -12,6 +12,8 @@ fcgi模式常驻内存，速度很快
 
 另一种为普通句子和汉字文件，名称为`words_0`，`words_1`, ..... , `words_9` ，最多10个，越靠前的是越常用的词组
 
+配置数据文件在当前项目的`datas/`目录下面。
+
 ### 性能测试
 这个PHP扩展大部分思路来自[https://github.com/overtrue/pinyin](https://github.com/overtrue/pinyin)这个项目，所以做个性能比对
 
