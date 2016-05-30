@@ -30,23 +30,52 @@
 /* If you declare any globals in php_pinyin.h uncomment this:
 */
 ZEND_DECLARE_MODULE_GLOBALS(pinyin);
-unsigned long hashLen = 50000;
+
+char *punctuations = ",，.。?？!！:：;；";
+
+static MyTone _myTones[MY_TONES_NUM] = {
+    {"üē", "ue", 1},
+    {"üé", "ue", 2},
+    {"üě", "ue", 3},
+    {"üè", "ue", 4},
+    {"ā", "a", 1},    
+    {"á", "a", 2},    
+    {"ǎ", "a", 3},    
+    {"à", "a", 4},    
+    {"ē", "e", 1},    
+    {"é", "e", 2},    
+    {"ě", "e", 3},    
+    {"è", "e", 4},    
+    {"ī", "i", 1},    
+    {"í", "i", 2},    
+    {"ǐ", "i", 3},    
+    {"ì", "i", 4},    
+    {"ō", "o", 1},    
+    {"ó", "o", 2},    
+    {"ǒ", "o", 3},    
+    {"ò", "o", 4},    
+    {"ū", "u", 1},    
+    {"ú", "u", 2},    
+    {"ǔ", "u", 3},    
+    {"ù", "u", 4},    
+    {"ǖ", "v", 1},    
+    {"ǘ", "v", 2},    
+    {"ǚ", "v", 3},    
+    {"ǜ", "v", 4}
+};
 
 /* True global resources - no need for thread safety here */
-static int le_pinyin;
 
 
-MyList *pinyin_list_append(const char *key, const char *value)
+MyList *pinyin_list_append(MyList *last, const char *key, const char *value)
 {
-    //判断槽位是否为空
     MyList *element = (MyList *)malloc(sizeof(MyList));
     char *newKey = strdup(key);
     char *newVal = strdup(value);
     element->key = newKey;
     element->val = newVal;
     element->next = NULL;
-    pinyin_globals.myLast->next = element;
-	pinyin_globals.myLast = element;
+    last->next = element;
 
     return element;
 }
@@ -100,9 +129,23 @@ const char *get_val_from_line(const char *line, char *ret)
 void scan_words_from_dir(const char *dir)
 {
     const char *path = "%swords_%d";
+    const char *surname_path = "%ssurnames";
     int i = 0;
-    char file[MAX_FILE_PATH_SIZE], line[MAX_WORD_LINE_SIZE], key[MAX_WORD_WORD_SIZE], val[MAX_WORD_WORD_SIZE];
+    char file[MAX_FILE_PATH_SIZE], surname_file[MAX_FILE_PATH_SIZE], line[MAX_WORD_LINE_SIZE], key[MAX_WORD_WORD_SIZE], val[MAX_WORD_WORD_SIZE];
     FILE *fp;
+    sprintf(surname_file, surname_path, dir);
+    if(access(surname_file, 0) == 0)
+    {
+        fp = fopen(surname_file, "r");
+        while(fgets(line, 100, fp))
+        {
+            get_key_from_line(line, key);
+            get_val_from_line(line, val);
+            pinyin_globals.mySurnameLast = pinyin_list_append(pinyin_globals.mySurnameLast, key, val);
+        }
+        fclose(fp);
+        fp = NULL;
+    }
     for(; i<MAX_READ_WORD_NUM; i++)
     {
         sprintf(file, path, dir, i);
@@ -113,14 +156,15 @@ void scan_words_from_dir(const char *dir)
         {
             get_key_from_line(line, key);
             get_val_from_line(line, val);
-            pinyin_list_append(key, val);
+            pinyin_globals.myLast = pinyin_list_append(pinyin_globals.myLast, key, val);
         }
         fclose(fp);
         fp = NULL;
     }
 }
 
-void str_replace(const char *from, const char *to, char *str, char *ret)
+// 替换字符串中的所有子字符串
+void str_replace(const char *from, const char *to, char *str, char *ret, zend_bool is_name)
 {
     int pos = 0,
         fromLen = strlen(from),
@@ -134,6 +178,8 @@ void str_replace(const char *from, const char *to, char *str, char *ret)
         strcat(ret, to);
         str = tmp + fromLen;
 		flag = 1;
+        if(is_name)
+            break;
     }   
 
     strcat(ret, str);
@@ -163,31 +209,69 @@ PHP_INI_END()
    purposes. */
 
 /* Every user-visible function in PHP should document itself in the source */
-/* {{{ proto string my_test(string arg)
+/* {{{ proto string chinese_to_pinyin(string arg)
    Return a string to confirm that the module is compiled in */
-PHP_FUNCTION(my_test)
+PHP_FUNCTION(chinese_to_pinyin)
 {
     char *arg = NULL;
     int arg_len;
+    long l = PINYIN_UNICODE;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &arg, &arg_len) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &arg, &arg_len, &l) == FAILURE) {
         return;
-    } 
+    }
 
 	int alloc_len = arg_len * 4 + 1;
 	char *ret = (char *)emalloc(alloc_len),
-		 *oldMessage = (char *)emalloc(alloc_len);
+		 *oldMessage = (char *)emalloc(alloc_len),
+         char_str[2] = {0};
 	memset(oldMessage, '\0', alloc_len);
 	strcat(oldMessage, arg);
 	strcat(ret, arg);
+    MyList *p_surname = pinyin_globals.mySurnameList->next;
+
+    //去掉标点符号
+    if(l & PINYIN_TRIM)
+    {
+        while(*punctuations)
+        {
+            memset(ret, '\0', alloc_len);
+            memset(char_str, *punctuations, 1);
+            str_replace(char_str, "", oldMessage, ret, false);
+            punctuations++;
+        }
+    }
+
+    //如果是名字，先用名字解析
+    if(l & PINYIN_ISNAME)
+    {
+        while(p_surname != NULL)
+        {
+            memset(ret, '\0', alloc_len);
+            str_replace(p_surname->key, p_surname->val, oldMessage, ret, true);
+            p_surname = p_surname->next;
+        }
+    }
+
+    //正常的拼音化
 	MyList *p = pinyin_globals.myList->next;
 	while(p != NULL)
 	{
 		memset(ret, '\0', alloc_len);
-		str_replace(p->key, p->val, oldMessage, ret);
+		str_replace(p->key, p->val, oldMessage, ret, false);
 		p = p->next;
 	}
 
+    //如果不需要声调，替换元音字母为正常字母
+    if(l & PINYIN_NONE)
+    {
+        int i = 0;
+        for(; i<MY_TONES_NUM; i++)
+        {
+		    memset(ret, '\0', alloc_len);
+		    str_replace(_myTones[i].key, _myTones[i].val, oldMessage, ret, false);
+        }
+    }
 	array_init(return_value);
 	char *item;
 	item = strtok(ret, "\t");
@@ -223,12 +307,18 @@ static void php_pinyin_init_globals(zend_pinyin_globals *pinyin_globals)
  */
 PHP_MINIT_FUNCTION(pinyin)
 {
-
-
     REGISTER_INI_ENTRIES();
     pinyin_globals.myList = pinyin_globals.myLast = (MyList *)malloc(sizeof(MyList));
+    pinyin_globals.mySurnameList = pinyin_globals.mySurnameLast = (MyList *)malloc(sizeof(MyList));
     const char *pinyindir = INI_STR("pinyin.dir");
     scan_words_from_dir(pinyindir);
+
+    //注册常量
+    REGISTER_LONG_CONSTANT("PINYIN_NONE", PINYIN_NONE, CONST_PERSISTENT | CONST_CS);
+    REGISTER_LONG_CONSTANT("PINYIN_UNICODE", PINYIN_UNICODE, CONST_PERSISTENT | CONST_CS);
+    REGISTER_LONG_CONSTANT("PINYIN_ISNAME", PINYIN_ISNAME, CONST_PERSISTENT | CONST_CS);
+    REGISTER_LONG_CONSTANT("PINYIN_TRIM", PINYIN_TRIM, CONST_PERSISTENT | CONST_CS);
+
 	/* If you have INI entries, uncomment these lines 
 	REGISTER_INI_ENTRIES();
 	*/
@@ -297,7 +387,7 @@ PHP_MINFO_FUNCTION(pinyin)
  * Every user visible function must have an entry in pinyin_functions[].
  */
 const zend_function_entry pinyin_functions[] = {
-	PHP_FE(my_test,	NULL)		/* For testing, remove later. */
+	PHP_FE(chinese_to_pinyin,	NULL)		/* For testing, remove later. */
 	PHP_FE_END	/* Must be the last line in pinyin_functions[] */
 };
 /* }}} */

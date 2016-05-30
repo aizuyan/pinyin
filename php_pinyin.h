@@ -58,21 +58,40 @@ typedef struct mylist {
     struct mylist *next;
 } MyList;
 
+typedef struct mytone {
+    char *key;
+    char *val;
+    unsigned int tone;
+} MyTone;
+
 ZEND_BEGIN_MODULE_GLOBALS(pinyin)
     MyList *myList;
 	MyList *myLast;
+    MyList *mySurnameList;
+    MyList *mySurnameLast;
+    MyTone *myTones;
 ZEND_END_MODULE_GLOBALS(pinyin)
 
 //calculate hash by string and keyLen
-MyList *pinyin_list_append(const char *key, const char *value);
+MyList *pinyin_list_append(MyList *last, const char *key, const char *value);
 void scan_words_from_dir(const char *dir);
 const char *get_key_from_line(const char *line, char *ret);
 const char *get_val_from_line(const char *line, char *ret);
+void str_replace(const char *from, const char *to, char *str, char *ret, zend_bool is_name);
 
 #define MAX_READ_WORD_NUM 10
 #define MAX_FILE_PATH_SIZE 50
 #define MAX_WORD_LINE_SIZE 100
 #define MAX_WORD_WORD_SIZE 50
+#define true 1
+#define false 0
+#define MY_TONES_NUM 28
+
+//用到的几个常量
+#define PINYIN_NONE (1<<0)
+#define PINYIN_UNICODE (1<<1)
+#define PINYIN_ISNAME (1<<2)
+#define PINYIN_TRIM (1<<3)
 
 /* In every utility function you add that needs to use variables 
    in php_pinyin_globals, call TSRMLS_FETCH(); after declaring other 
