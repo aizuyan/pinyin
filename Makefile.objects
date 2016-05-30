@@ -1,0 +1,8 @@
+pinyin.lo: /usr/local/src/php-5.6.18/ext/pinyin/pinyin.c
+	$(LIBTOOL) --mode=compile $(CC)  -I. -I/usr/local/src/php-5.6.18/ext/pinyin $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS)  -c /usr/local/src/php-5.6.18/ext/pinyin/pinyin.c -o pinyin.lo 
+$(phplibdir)/pinyin.la: ./pinyin.la
+	$(LIBTOOL) --mode=install cp ./pinyin.la $(phplibdir)
+
+./pinyin.la: $(shared_objects_pinyin) $(PINYIN_SHARED_DEPENDENCIES)
+	$(LIBTOOL) --mode=link $(CC) $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) $(LDFLAGS) -o $@ -export-dynamic -avoid-version -prefer-pic -module -rpath $(phplibdir) $(EXTRA_LDFLAGS) $(shared_objects_pinyin) $(PINYIN_SHARED_LIBADD)
+
