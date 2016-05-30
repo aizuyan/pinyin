@@ -248,12 +248,12 @@ PHP_FUNCTION(chinese_to_pinyin)
     MyList *p_surname = pinyin_globals.mySurnameList->next;
 
     //去掉标点符号
-    if(l & (PINYIN_TRIM|PINYIN_FORMAT_EN|PINYIN_FORMAT))
+    if(l & (PINYIN_TRIM|PINYIN_FORMAT_EN|PINYIN_FORMAT_CH))
     {
         int j = 0;
         for(; j<MY_TRIM_NUM; j++)
         {
-            if(l & PINYIN_FORMAT)   //仅仅格式化
+            if(l & PINYIN_FORMAT_CH)   //仅仅格式化
             {
                 memset(char_str, '\0', MAX_PUNCTUATION_SIZE);
                 strcat(char_str, "\t");
@@ -372,7 +372,7 @@ PHP_MINIT_FUNCTION(pinyin)
     REGISTER_LONG_CONSTANT("PINYIN_ISNAME", PINYIN_ISNAME, CONST_PERSISTENT | CONST_CS);
     REGISTER_LONG_CONSTANT("PINYIN_TRIM", PINYIN_TRIM, CONST_PERSISTENT | CONST_CS);
     REGISTER_LONG_CONSTANT("PINYIN_FORMAT_EN", PINYIN_FORMAT_EN, CONST_PERSISTENT | CONST_CS);
-    REGISTER_LONG_CONSTANT("PINYIN_FORMAT", PINYIN_FORMAT, CONST_PERSISTENT | CONST_CS);
+    REGISTER_LONG_CONSTANT("PINYIN_FORMAT_CH", PINYIN_FORMAT_CH, CONST_PERSISTENT | CONST_CS);
 
 	/* If you have INI entries, uncomment these lines 
 	REGISTER_INI_ENTRIES();

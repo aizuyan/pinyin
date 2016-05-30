@@ -96,7 +96,7 @@ void str_replace(const char *from, const char *to, char *str, char *ret, zend_bo
 #define PINYIN_ISNAME (1<<2)
 #define PINYIN_TRIM (1<<3)  //省略标点符号
 #define PINYIN_FORMAT_EN (1<<4)    //将标点符号转为英文的
-#define PINYIN_FORMAT (1<<5)    //将表单符号分割为一个
+#define PINYIN_FORMAT_CH (1<<5)    //将表单符号分割为一个
 
 /* In every utility function you add that needs to use variables 
    in php_pinyin_globals, call TSRMLS_FETCH(); after declaring other 
