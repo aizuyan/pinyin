@@ -262,7 +262,7 @@ PHP_FUNCTION(chinese_to_pinyin)
                 str_replace(punctuations[j].key, char_str, oldMessage, ret, false);   
                 memset(char_str, '\0', MAX_PUNCTUATION_SIZE);
                 strcat(char_str, "\t");
-                strcat(char_str, punctuations[j].val);
+                strcat(char_str, punctuations[j].key);
                 memset(ret, '\0', alloc_len);
                 str_replace(punctuations[j].val, char_str, oldMessage, ret, false);   
             }
