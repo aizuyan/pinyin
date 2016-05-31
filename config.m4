@@ -14,7 +14,6 @@ dnl [  --with-pinyin             Include pinyin support])
 dnl Otherwise use enable:
 
 PHP_ARG_ENABLE(pinyin, whether to enable pinyin support,
-Make sure that the comment is aligned:
 [  --enable-pinyin           Enable pinyin support])
 
 if test "$PHP_PINYIN" != "no"; then
