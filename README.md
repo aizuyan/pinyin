@@ -1,18 +1,18 @@
 # pinyin
-php 汉字转pinyin 扩展形式的
+php 汉字转 pinyin 扩展形式的
 
 ###
-fcgi模式常驻内存，速度很快
+fcgi 模式常驻内存，速度很快
 
 ### 配置
-这里面需要在/path/to/php.ini中配置`pinyin.dir=/path/to/pinyindir`，配置的路径为数据文件存放的目录。
+这里面需要在 /path/to/php.ini 中配置 `pinyin.dir=/path/to/pinyindir`，配置的路径为数据文件存放的目录。
 目录下面的文件分为两种：
 
-一种是姓氏文件，只有一个，名称为`surnames`
+一种是姓氏文件，只有一个，名称为 `surnames`
 
-另一种为普通句子和汉字文件，名称为`words_0`，`words_1`, ..... , `words_9` ，最多10个，越靠前的是越常用的词组
+另一种为普通句子和汉字文件，名称为 `words_0`，`words_1`， ..... ， `words_9` ，最多10个，越靠前的是越常用的词组
 
-配置数据文件在当前项目的`datas/`目录下面。
+配置数据文件在当前项目的 `datas/` 目录下面。
 
 ### 性能测试
 这个PHP扩展大部分思路来自[https://github.com/overtrue/pinyin](https://github.com/overtrue/pinyin)这个项目，所以做个性能比对
@@ -60,12 +60,12 @@ echo "最大使用内存【".memory_get_peak_usage(true)."bytes】";
 |      项目         | 耗时   | 占用内存峰值 |   备注                             |
 | -------------     | -------| ------------ | ---------------------------------  |
 | overtrue/pinyin   | 90.12s |  8.5MB       |                                    |
-| aizuyan/pkinyin   | 2.97s  |  0.75MB      | 模块初始化的时候已经加载了所有数据 |
+| aizuyan/pinyin    | 2.97s  |  0.75MB      | 模块初始化的时候已经加载了所有数据 |
 
-分析下，因为我这个使用的是fast-cgi模式，模块初始化的时候已经将拼音汉字相关数据载入内存，所以查询起来很快，不用每次去加载一遍数据
+分析下，因为我这个使用的是 fast-cgi 模式，模块初始化的时候已经将拼音汉字相关数据载入内存，所以查询起来很快，不用每次去加载一遍数据
 
 ### 使用
-这里用了最简洁的方式，用了一个函数`chinese_to_pinyin(char *str, int flags)`，根据不同的参数，转换为不用的形式
+这里用了最简洁的方式，用了一个函数 `chinese_to_pinyin(char *str, int flags)`，根据不同的参数，转换为不用的形式
 > PINYIN_NONE    拼音不加音调
 > PINYIN_UNICODE    拼音加音调
 > PINYIN_ISNAME     要转化的内容为名字
