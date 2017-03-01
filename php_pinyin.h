@@ -114,6 +114,12 @@ void str_replace(const char *from, const char *to, char *str, char *ret, zend_bo
 #define PINYIN_G(v) (pinyin_globals.v)
 #endif
 
+#if PHP_MAJOR_VERSION < 7
+#include "php5_pinyin.h"
+#else
+#include "php7_pinyin.h"
+#endif
+
 #endif	/* PHP_PINYIN_H */
 
 

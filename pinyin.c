@@ -320,11 +320,11 @@ PHP_FUNCTION(chinese_to_pinyin)
 	array_init(return_value);
 	char *item;
 	item = strtok(ret, "\t");
-	add_next_index_string(return_value, item, 1);
+    py_add_next_index_string(return_value, item, 1);
 
 	while((item = strtok(NULL, "\t")))
 	{
-		add_next_index_string(return_value, item, 1);
+        py_add_next_index_string(return_value, item, 1);
 	}
 }
 /* }}} */
