@@ -355,7 +355,7 @@ PHP_MINIT_FUNCTION(pinyin)
     {
         php_error(E_WARNING, "汉字转拼音配置文件夹【%s】访问不了，或者未配置文件夹", pinyinDir);
     }else {
-        scan_words_from_dir(pinyindir);
+        py_fill_data_list(pinyinDir);
         PY_GLOBAL(can_access) = true;
     }
 
@@ -380,8 +380,8 @@ PHP_MSHUTDOWN_FUNCTION(pinyin)
 	UNREGISTER_INI_ENTRIES();
 
 
-    py_data_list tmp,
-        *ptr = PY_GLOBALS(wordList);
+    py_data_list *tmp,
+        *ptr = PY_GLOBAL(wordList);
 	
 	tmp = ptr;
 	while(ptr != NULL)
@@ -393,7 +393,7 @@ PHP_MSHUTDOWN_FUNCTION(pinyin)
         ptr = tmp;
 	}
 
-    prt = PY_GLOBALS(surnameList);
+    ptr = PY_GLOBAL(surnameList);
     tmp = ptr;
     while(ptr != NULL)
     {
@@ -403,8 +403,8 @@ PHP_MSHUTDOWN_FUNCTION(pinyin)
 		free(ptr);
         ptr = tmp;
     }
-    free(PY_GLOABLS(wordList));
-    free(PY_GLOBALS(surnameList));
+    free(PY_GLOBAL(wordList));
+    free(PY_GLOBAL(surnameList));
 	
 	return SUCCESS;
 }
@@ -447,7 +447,7 @@ PHP_MINFO_FUNCTION(pinyin)
  * Every user visible function must have an entry in pinyin_functions[].
  */
 const zend_function_entry pinyin_functions[] = {
-	PHP_FE(chinese_to_pinyin,	NULL)		/* For testing, remove later. */
+	//PHP_FE(chinese_to_pinyin,	NULL)		/* For testing, remove later. */
 	PHP_FE_END	/* Must be the last line in pinyin_functions[] */
 };
 /* }}} */
