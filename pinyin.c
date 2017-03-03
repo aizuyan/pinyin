@@ -157,13 +157,13 @@ void py_fill_data_list(const char *dir, unsigned int num)
     for(; i<MAX_READ_WORD_NUM; i++)
     {
         sprintf(filePath, FORMAT_WORD_PATH, dir, i);
-        if(0 != access(file, ACCESS_MODE_EXISTS))
+        if(0 != access(filePath, ACCESS_MODE_EXISTS))
             continue;
         fp  = fopen(filePath, "r");
         while(fgets(fileLine, 100, fp))
         {
             py_analysis_chinese_tones(fileLine, chinese, tones);
-            last = pinyin_list_append(last, chinese, tones);
+            last = py_data_list_append(last, chinese, tones);
         }
         fclose(fp);
         fp = NULL;
@@ -171,6 +171,7 @@ void py_fill_data_list(const char *dir, unsigned int num)
 }
 
 // 替换字符串中的所有子字符串
+/*
 void str_replace(const char *from, const char *to, char *str, char *ret, zend_bool is_name)
 {
     int pos = 0,
@@ -195,7 +196,7 @@ void str_replace(const char *from, const char *to, char *str, char *ret, zend_bo
 		memcpy(strTmp, ret, strlen(ret));
 		strTmp[strlen(ret)] = '\0';
 	}
-}
+}*/
 
 PHP_INI_BEGIN()
     PHP_INI_ENTRY("pinyin.dir", "", PHP_INI_SYSTEM, NULL)
@@ -208,7 +209,7 @@ PHP_INI_END()
 /* Every user-visible function in PHP should document itself in the source */
 /* {{{ proto string chinese_to_pinyin(string arg)
    Return a string to confirm that the module is compiled in */
-PHP_FUNCTION(chinese_to_pinyin)
+/*PHP_FUNCTION(chinese_to_pinyin)
 {
     char *arg = NULL;
     int arg_len;
@@ -313,6 +314,7 @@ PHP_FUNCTION(chinese_to_pinyin)
         py_add_next_index_string(return_value, item, 1);
 	}
 }
+ */
 /* }}} */
 /* The previous line is meant for vim and emacs, so it can correctly fold and 
    unfold functions in source code. See the corresponding marks just before 

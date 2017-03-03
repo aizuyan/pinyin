@@ -61,7 +61,7 @@ ZEND_END_MODULE_GLOBALS(pinyin)
 py_data_list *py_data_list_append(py_data_list *last, const char *key, const char *value);
 void py_fill_data_list(const char *dir, unsigned int num);
 void py_analysis_chinese_tones(const char *line, char *chinese, char *tones);
-void str_replace(const char *from, const char *to, char *str, char *ret, zend_bool is_name);
+//void str_replace(const char *from, const char *to, char *str, char *ret, zend_bool is_name);
 
 #define MAX_READ_WORD_NUM 10
 #define MAX_FILE_PATH_SIZE 50
