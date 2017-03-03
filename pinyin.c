@@ -31,20 +31,22 @@
 */
 ZEND_DECLARE_MODULE_GLOBALS(pinyin);
 
-static MyTone punctuations[MY_TRIM_NUM] = {
-    {"，", ",", 0},
-    {"。", ".", 0},
-    {"？", "?", 0},
-    {"！", "!", 0},
-    {"：", ":", 0},
-    {"；", ";", 0},
-    {"“", "\"", 0},
-    {"”", "\"", 0},
-    {"‘", "'", 0},
-    {"’", "'", 0}
+/* 要转换的 字符列表*/
+static py_punctuation_map charTransMap[PY_CHAR_TRANS_MAP_NUM] = {
+    {"，", ","},
+    {"。", "."},
+    {"？", "?"},
+    {"！", "!"},
+    {"：", ":"},
+    {"；", ";"},
+    {"“", "\""},
+    {"”", "\""},
+    {"‘", "'"},
+    {"’", "'"}
 };
 
-static MyTone _myTones[MY_TONES_NUM] = {
+/*韵母信息表，完整的韵母,不带音标的韵母,音标*/
+static py_tone_info toneInfos[PY_TONE_INFO_NUM] = {
     {"üē", "ue", 1},
     {"üé", "ue", 2},
     {"üě", "ue", 3},
@@ -77,97 +79,91 @@ static MyTone _myTones[MY_TONES_NUM] = {
 
 /* True global resources - no need for thread safety here */
 
-
-MyList *pinyin_list_append(MyList *last, const char *key, const char *value)
+py_data_list *py_data_list_append(py_data_list *last, const char *key, const char *value)
 {
-    MyList *element = (MyList *)malloc(sizeof(MyList));
-    char *newKey = strdup(key);
-    char *newVal = strdup(value);
-    element->key = newKey;
-    element->val = newVal;
+    py_data_list *element = (py_data_list *)malloc(sizeof(py_data_list));
+    element->key = py_strdup(key);
+    element->val = py_strdup(value);
     element->next = NULL;
     last->next = element;
 
     return element;
 }
 
-const char *get_key_from_line(const char *line, char *ret)
-{   
-    int i = 0;
+
+/**
+ * 从一行汉字、拼音中将汉字拼音分开
+ *
+ * @param line
+ * @param ret
+ * @return
+ */
+void py_analysis_chinese_tones(const char *line, char *chinese, char *tones)
+{
+    int i = 0,
+        j = 0,
+        flag = 0;
     while(*line)
-    {   
-        if(*line != ',')
-        {   
-            ret[i] = *line;
-        }else {
+    {
+        if(*line == '\n')
+        {
             break;
         }
-        i++;
-        line++;
-    }
-    ret[i] = '\0';
-    return ret;
-}
-
-const char *get_val_from_line(const char *line, char *ret)
-{   
-    int i = 0; 
-    int flag = 0;
-    while(*line)
-    {   
-        if(*line == '\n')
-		{
-			break;
-		}
-        if(*line == ',')
-        {   
-            flag = 1;
-            line++;
-            continue;
-        }else if(!flag) {
-            line++;
-            continue;
-        }
-        ret[i] = *line;
-        i++;
-        line++;
-    }
-    ret[i] = '\0';
-    return ret;
-}
-
-//最多扫描10个words文件，按顺序从0开始
-void scan_words_from_dir(const char *dir)
-{
-    const char *path = "%swords_%d";
-    const char *surname_path = "%ssurnames";
-    int i = 0;
-    char file[MAX_FILE_PATH_SIZE], surname_file[MAX_FILE_PATH_SIZE], line[MAX_WORD_LINE_SIZE], key[MAX_WORD_WORD_SIZE], val[MAX_WORD_WORD_SIZE];
-    FILE *fp;
-    sprintf(surname_file, surname_path, dir);
-    if(access(surname_file, 0) == 0)
-    {
-        fp = fopen(surname_file, "r");
-        while(fgets(line, 100, fp))
+        if(0 == flag && *line != ',')
         {
-            get_key_from_line(line, key);
-            get_val_from_line(line, val);
-            pinyin_globals.mySurnameLast = pinyin_list_append(pinyin_globals.mySurnameLast, key, val);
+            chinese[i] = *line;
+            i++;
+        }else if (',' == *line){
+            flag = 1;
+        }else if (1 == flag){
+            tones[j] = *line;
+            j++;
+        }
+        line++;
+    }
+    chinese[i] = 0;
+    tones[j] = 0;
+}
+
+/*
+ * 扫描指定文件夹下指定数量的文件，最多num个
+ *
+ * surname最多一个
+ */
+void py_fill_data_list(const char *dir, unsigned int num)
+{
+    int i = 0;
+    char filePath[100] = {0},
+        fileLine[100] = {0},
+        chinese[100] = {0},
+        tones[100] = {0};
+
+    FILE *fp;
+    sprintf(filePath, FORMAT_SURNAME_PATH, dir);
+    py_data_list *last = PY_GLOBAL(surnameList);
+    if(0 == access(filePath, ACCESS_MODE_EXISTS))
+    {
+        fp = fopen(filePath, "r");
+        while(fgets(fileLine, 100, fp))
+        {
+            py_analysis_chinese_tones(fileLine, chinese, tones);
+            last = py_data_list_append(last, chinese, tones);
         }
         fclose(fp);
         fp = NULL;
     }
+
+    last = PY_GLOBAL(wordList);
     for(; i<MAX_READ_WORD_NUM; i++)
     {
-        sprintf(file, path, dir, i);
-        if(access(file, 0) == -1)
+        sprintf(filePath, FORMAT_WORD_PATH, dir, i);
+        if(0 != access(file, ACCESS_MODE_EXISTS))
             continue;
-        fp  = fopen(file, "r");
-        while(fgets(line, 100, fp))
+        fp  = fopen(filePath, "r");
+        while(fgets(fileLine, 100, fp))
         {
-            get_key_from_line(line, key);
-            get_val_from_line(line, val);
-            pinyin_globals.myLast = pinyin_list_append(pinyin_globals.myLast, key, val);
+            py_analysis_chinese_tones(fileLine, chinese, tones);
+            last = pinyin_list_append(last, chinese, tones);
         }
         fclose(fp);
         fp = NULL;
@@ -200,16 +196,6 @@ void str_replace(const char *from, const char *to, char *str, char *ret, zend_bo
 		strTmp[strlen(ret)] = '\0';
 	}
 }
-
-/* {{{ PHP_INI
- */
-/* Remove comments and fill if you need to have entries in php.ini
-PHP_INI_BEGIN()
-    STD_PHP_INI_ENTRY("pinyin.global_value",      "42", PHP_INI_ALL, OnUpdateLong, global_value, zend_pinyin_globals, pinyin_globals)
-    STD_PHP_INI_ENTRY("pinyin.global_string", "foobar", PHP_INI_ALL, OnUpdateString, global_string, zend_pinyin_globals, pinyin_globals)
-PHP_INI_END()
-*/
-/* }}} */
 
 PHP_INI_BEGIN()
     PHP_INI_ENTRY("pinyin.dir", "", PHP_INI_SYSTEM, NULL)
@@ -351,19 +337,24 @@ static void php_pinyin_init_globals(zend_pinyin_globals *pinyin_globals)
 PHP_MINIT_FUNCTION(pinyin)
 {
     REGISTER_INI_ENTRIES();
-    pinyin_globals.can_access = false;
-    pinyin_globals.myList = pinyin_globals.myLast = (MyList *)malloc(sizeof(MyList));
-    pinyin_globals.myList->next = NULL;
-    pinyin_globals.mySurnameList = pinyin_globals.mySurnameLast = (MyList *)malloc(sizeof(MyList));
-    pinyin_globals.mySurnameList->next = NULL;
-    const char *pinyindir = INI_STR("pinyin.dir");
 
-    if(strlen(pinyindir) == 0 || access(pinyindir, 0))
+    /* 数据配置地址 */
+    const char *pinyinDir = NULL;
+
+    /* 初始化全局变量 */
+    PY_GLOBAL(can_access) = false;
+    PY_GLOBAL(wordList) = (py_data_list *)malloc(sizeof(py_data_list));
+    PY_GLOBAL(wordList)->next = NULL;
+    PY_GLOBAL(surnameList) = (py_data_list *)malloc(sizeof(py_data_list));
+    PY_GLOBAL(surnameList)->next = NULL;
+    pinyinDir = INI_STR("pinyin.dir");
+
+    if(strlen(pinyinDir) == 0 || access(pinyinDir, ACCESS_MODE_EXISTS))
     {
-        php_error(E_WARNING, "汉字转拼音配置文件夹【%s】访问不了，或者未配置文件夹", pinyindir);
+        php_error(E_WARNING, "汉字转拼音配置文件夹【%s】访问不了，或者未配置文件夹", pinyinDir);
     }else {
         scan_words_from_dir(pinyindir);
-        pinyin_globals.can_access = true;
+        PY_GLOBAL(can_access) = true;
     }
 
     //注册常量
@@ -374,9 +365,6 @@ PHP_MINIT_FUNCTION(pinyin)
     REGISTER_LONG_CONSTANT("PINYIN_FORMAT_EN", PINYIN_FORMAT_EN, CONST_PERSISTENT | CONST_CS);
     REGISTER_LONG_CONSTANT("PINYIN_FORMAT_CH", PINYIN_FORMAT_CH, CONST_PERSISTENT | CONST_CS);
 
-	/* If you have INI entries, uncomment these lines 
-	REGISTER_INI_ENTRIES();
-	*/
 	return SUCCESS;
 }
 /* }}} */
@@ -388,30 +376,33 @@ PHP_MSHUTDOWN_FUNCTION(pinyin)
 	/* uncomment this line if you have INI entries
 	*/
 	UNREGISTER_INI_ENTRIES();
+
+
+    py_data_list tmp,
+        *ptr = PY_GLOBALS(wordList);
 	
-	MyList *p = pinyin_globals.myList->next;
-	MyList *tmp = p;
-	while(p != NULL)
+	tmp = ptr;
+	while(ptr != NULL)
 	{
-		tmp = p->next;
-		free(p->key);
-		free(p->val);
-		free(p);
-		p = tmp;
+		tmp = ptr->next;
+		free(ptr->key);
+		free(ptr->val);
+		free(ptr);
+        ptr = tmp;
 	}
 
-    p = pinyin_globals.mySurnameList->next;
-    tmp = p;
-    while(p != NULL)
+    prt = PY_GLOBALS(surnameList);
+    tmp = ptr;
+    while(ptr != NULL)
     {
-        tmp = p->next;
-		free(p->key);
-		free(p->val);
-		free(p);
-		p = tmp;
+        tmp = ptr->next;
+		free(ptr->key);
+		free(ptr->val);
+		free(ptr);
+        ptr = tmp;
     }
-    free(pinyin_globals.myList);
-    free(pinyin_globals.mySurnameList);
+    free(PY_GLOABLS(wordList));
+    free(PY_GLOBALS(surnameList));
 	
 	return SUCCESS;
 }

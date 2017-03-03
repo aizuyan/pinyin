@@ -26,58 +26,41 @@ extern zend_module_entry pinyin_module_entry;
 
 #define PHP_PINYIN_VERSION "0.1.0" /* Replace with version number for your extension */
 
-#ifdef PHP_WIN32
-#	define PHP_PINYIN_API __declspec(dllexport)
-#elif defined(__GNUC__) && __GNUC__ >= 4
-#	define PHP_PINYIN_API __attribute__ ((visibility("default")))
-#else
-#	define PHP_PINYIN_API
-#endif
-
-#ifdef ZTS
-#include "TSRM.h"
-#endif
-
-/* 
-  	Declare any global variables you may need between the BEGIN
-	and END macros here:     
-
-ZEND_BEGIN_MODULE_GLOBALS(pinyin)
-	long  global_value;
-	char *global_string;
-ZEND_END_MODULE_GLOBALS(pinyin)
-*/
-
 PHP_MINIT_FUNCTION(pinyin);
 PHP_MSHUTDOWN_FUNCTION(pinyin);
 ZEND_FUNCTION(my_test);
 
-typedef struct mylist {
+typedef struct _py_data_list
+{
     char *key;
     char *val;
-    struct mylist *next;
-} MyList;
+    struct _py_data_list *next;
+} py_data_list;
 
-typedef struct mytone {
-    char *key;
-    char *val;
+typedef struct
+{
+    char *complete;
+    char *simple;
     unsigned int tone;
-} MyTone;
+} py_tone_info;
+
+typedef struct
+{
+    char *from;
+    char *to;
+} py_punctuation_map;
+
 
 ZEND_BEGIN_MODULE_GLOBALS(pinyin)
-    MyList *myList;
-	MyList *myLast;
-    MyList *mySurnameList;
-    MyList *mySurnameLast;
-    MyTone *myTones;
+    py_data_list *wordList;
+    py_data_list *surnameList;
     zend_bool can_access;
 ZEND_END_MODULE_GLOBALS(pinyin)
 
 //calculate hash by string and keyLen
-MyList *pinyin_list_append(MyList *last, const char *key, const char *value);
-void scan_words_from_dir(const char *dir);
-const char *get_key_from_line(const char *line, char *ret);
-const char *get_val_from_line(const char *line, char *ret);
+py_data_list *py_data_list_append(py_data_list *last, const char *key, const char *value);
+void py_fill_data_list(const char *dir, unsigned int num);
+void py_analysis_chinese_tones(const char *line, char *chinese, char *tones);
 void str_replace(const char *from, const char *to, char *str, char *ret, zend_bool is_name);
 
 #define MAX_READ_WORD_NUM 10
@@ -86,8 +69,8 @@ void str_replace(const char *from, const char *to, char *str, char *ret, zend_bo
 #define MAX_WORD_WORD_SIZE 50
 #define true 1
 #define false 0
-#define MY_TONES_NUM 28
-#define MY_TRIM_NUM 10
+#define PY_TONE_INFO_NUM 28
+#define PY_CHAR_TRANS_MAP_NUM 10
 #define MAX_PUNCTUATION_SIZE 10
 
 //用到的几个常量
@@ -98,21 +81,18 @@ void str_replace(const char *from, const char *to, char *str, char *ret, zend_bo
 #define PINYIN_FORMAT_EN (1<<4)    //将标点符号转为英文的
 #define PINYIN_FORMAT_CH (1<<5)    //将表单符号分割为一个
 
-/* In every utility function you add that needs to use variables 
-   in php_pinyin_globals, call TSRMLS_FETCH(); after declaring other 
-   variables used by that function, or better yet, pass in TSRMLS_CC
-   after the last function argument and declare your utility function
-   with TSRMLS_DC after the last declared argument.  Always refer to
-   the globals in your function as PINYIN_G(variable).  You are 
-   encouraged to rename these macros something shorter, see
-   examples in any other php module directory.
-*/
+/* 保存数据的文件名 */
+#define FORMAT_WORD_PATH "%swords_%d\0"
+#define FORMAT_SURNAME_PATH "%ssurnames\0"
 
-#ifdef ZTS
-#define PINYIN_G(v) TSRMG(pinyin_globals_id, zend_pinyin_globals *, v)
-#else
-#define PINYIN_G(v) (pinyin_globals.v)
-#endif
+/* 检测文件是否存在的mode */
+#define ACCESS_MODE_EXISTS 0
+
+
+/* 函数封装 */
+#define py_strdup estrdup
+
+#define PY_GLOBAL(v) (pinyin_globals.v)
 
 #if PHP_MAJOR_VERSION < 7
 #include "php5_pinyin.h"
