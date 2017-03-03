@@ -355,7 +355,7 @@ PHP_MINIT_FUNCTION(pinyin)
     {
         php_error(E_WARNING, "汉字转拼音配置文件夹【%s】访问不了，或者未配置文件夹", pinyinDir);
     }else {
-        py_fill_data_list(pinyinDir);
+        py_fill_data_list(pinyinDir, 10);
         PY_GLOBAL(can_access) = true;
     }
 
