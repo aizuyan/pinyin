@@ -140,6 +140,7 @@ void py_fill_data_list(const char *dir, unsigned int num)
 
     FILE *fp;
     sprintf(filePath, FORMAT_SURNAME_PATH, dir);
+    printf("%s\n", filePath);
     py_data_list *last = PY_GLOBAL(surnameList);
     if(0 == access(filePath, ACCESS_MODE_EXISTS))
     {
@@ -157,6 +158,7 @@ void py_fill_data_list(const char *dir, unsigned int num)
     for(; i<MAX_READ_WORD_NUM; i++)
     {
         sprintf(filePath, FORMAT_WORD_PATH, dir, i);
+        printf("%s\n", filePath);
         if(0 != access(filePath, ACCESS_MODE_EXISTS))
             continue;
         fp  = fopen(filePath, "r");
@@ -351,12 +353,19 @@ PHP_MINIT_FUNCTION(pinyin)
     PY_GLOBAL(surnameList)->next = NULL;
     pinyinDir = INI_STR("pinyin.dir");
 
+    printf("%s\n", pinyinDir);
+
     if(strlen(pinyinDir) == 0 || access(pinyinDir, ACCESS_MODE_EXISTS))
     {
         php_error(E_WARNING, "汉字转拼音配置文件夹【%s】访问不了，或者未配置文件夹", pinyinDir);
     }else {
         py_fill_data_list(pinyinDir, 10);
         PY_GLOBAL(can_access) = true;
+    }
+    py_data_list *ptr = PY_GLOBAL(surnameList);
+    while (ptr != NULL) {
+        printf("%s:%s\n", ptr->key, ptr->val);
+        ptr = ptr->next;
     }
 
     //注册常量
