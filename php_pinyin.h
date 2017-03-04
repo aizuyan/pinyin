@@ -90,7 +90,7 @@ void py_analysis_chinese_tones(const char *line, char *chinese, char *tones);
 
 
 /* 函数封装 */
-#define py_strdup estrdup
+#define py_strdup strdup
 
 #define PY_GLOBAL(v) (pinyin_globals.v)
 

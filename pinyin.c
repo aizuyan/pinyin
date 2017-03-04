@@ -81,6 +81,8 @@ static py_tone_info toneInfos[PY_TONE_INFO_NUM] = {
 
 py_data_list *py_data_list_append(py_data_list *last, const char *key, const char *value)
 {
+    if (strlen(key) <= 0 || strlen(value) <= 0)
+        return last;
     py_data_list *element = (py_data_list *)malloc(sizeof(py_data_list));
     element->key = py_strdup(key);
     element->val = py_strdup(value);
@@ -362,11 +364,6 @@ PHP_MINIT_FUNCTION(pinyin)
         py_fill_data_list(pinyinDir, 10);
         PY_GLOBAL(can_access) = true;
     }
-    py_data_list *ptr = PY_GLOBAL(surnameList);
-    while (ptr != NULL) {
-        printf("%s:%s\n", ptr->key, ptr->val);
-        ptr = ptr->next;
-    }
 
     //注册常量
     REGISTER_LONG_CONSTANT("PINYIN_NONE", PINYIN_NONE, CONST_PERSISTENT | CONST_CS);
@@ -380,18 +377,28 @@ PHP_MINIT_FUNCTION(pinyin)
 }
 /* }}} */
 
-/* {{{ PHP_MSHUTDOWN_FUNCTION
+/*
+ * 清理内存工作
  */
 PHP_MSHUTDOWN_FUNCTION(pinyin)
 {
-	/* uncomment this line if you have INI entries
-	*/
 	UNREGISTER_INI_ENTRIES();
 
-
     py_data_list *tmp,
-        *ptr = PY_GLOBAL(wordList);
-	
+        *ptr;
+
+    ptr = PY_GLOBAL(surnameList)->next;
+    tmp = ptr;
+    while(ptr != NULL)
+    {
+        tmp = ptr->next;
+        free(ptr->key);
+        free(ptr->val);
+        free(ptr);
+        ptr = tmp;
+    }
+
+    ptr = PY_GLOBAL(wordList)->next;
 	tmp = ptr;
 	while(ptr != NULL)
 	{
@@ -401,60 +408,29 @@ PHP_MSHUTDOWN_FUNCTION(pinyin)
 		free(ptr);
         ptr = tmp;
 	}
-
-    ptr = PY_GLOBAL(surnameList);
-    tmp = ptr;
-    while(ptr != NULL)
-    {
-        tmp = ptr->next;
-		free(ptr->key);
-		free(ptr->val);
-		free(ptr);
-        ptr = tmp;
-    }
     free(PY_GLOBAL(wordList));
     free(PY_GLOBAL(surnameList));
 	
 	return SUCCESS;
 }
-/* }}} */
 
-/* Remove if there's nothing to do at request start */
-/* {{{ PHP_RINIT_FUNCTION
- */
 PHP_RINIT_FUNCTION(pinyin)
 {
 	return SUCCESS;
 }
-/* }}} */
 
-/* Remove if there's nothing to do at request end */
-/* {{{ PHP_RSHUTDOWN_FUNCTION
- */
 PHP_RSHUTDOWN_FUNCTION(pinyin)
 {
 	return SUCCESS;
 }
-/* }}} */
 
-/* {{{ PHP_MINFO_FUNCTION
- */
 PHP_MINFO_FUNCTION(pinyin)
 {
 	php_info_print_table_start();
 	php_info_print_table_header(2, "pinyin support", "enabled");
 	php_info_print_table_end();
-
-	/* Remove comments if you have entries in php.ini
-	DISPLAY_INI_ENTRIES();
-	*/
 }
-/* }}} */
 
-/* {{{ pinyin_functions[]
- *
- * Every user visible function must have an entry in pinyin_functions[].
- */
 const zend_function_entry pinyin_functions[] = {
 	//PHP_FE(chinese_to_pinyin,	NULL)		/* For testing, remove later. */
 	PHP_FE_END	/* Must be the last line in pinyin_functions[] */
