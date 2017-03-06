@@ -276,16 +276,11 @@ PHP_FUNCTION(chinese_to_pinyin)
     //正常的拼音化
     py_data_list *wordListPtr = PY_GLOBAL(wordList)->next;
     char *wordPtr = NULL;
+    size_t splitLen = 0;
     zval *pinyinPieces = (zval *)malloc(sizeof(zval));
     array_init(pinyinPieces);
-    //zend_string *chineseTmp = zend_string_init(chinese, strlen(chinese), 0);
     while(wordListPtr != NULL)
     {
-        /*chineseTmp = php_str_to_str(
-                ZSTR_VAL(chineseTmp), strlen(ZSTR_VAL(chineseTmp)),
-                wordListPtr->key,strlen(wordListPtr->key),
-                wordListPtr->val, strlen(wordListPtr->val)
-        );*/
         wordPtr = py_strstr(chinese, wordListPtr->key);
         if (NULL != wordPtr) {
             py_add_index_stringl(pinyinPieces, wordPtr-chinese, wordListPtr->val, py_strlen(wordListPtr->val));
@@ -295,13 +290,38 @@ PHP_FUNCTION(chinese_to_pinyin)
         wordListPtr = wordListPtr->next;
     }
 
-    /* chinese中的非汉字字符挑出来 */
     wordPtr = chinese;
-    smart_string wordSplit; //(smart_string *)malloc(sizeof(smart_string));
-    smart_string_appends(&wordSplit, "你好啊~");
-  //  smart_string_appendl(wordSplit, "你好啊~", strlen("你好啊~"));
-    //smart_string_0(wordSplit);
-    printf("####\n%s\n####\n", wordSplit.c);
+    while (*wordPtr) {
+        printf("%s\n", wordPtr);
+        if (CHINESE_SUB_CHAR == *wordPtr) {
+            if (splitLen > 0) {
+                *wordPtr = 0;
+                py_add_index_stringl(pinyinPieces, wordPtr-chinese-splitLen,wordPtr - splitLen, py_strlen(wordPtr - splitLen));
+            }
+            splitLen = 0;
+        } else {
+            splitLen++;
+        }
+        ++wordPtr;
+    }
+zend_hash_sort(Z_ARRVAL_P(pinyinPieces), php_array_key_compare, 0);
+
+RETVAL_ARR(Z_ARRVAL_P(pinyinPieces));
+
+    /* chinese中的非汉字字符挑出来 */
+/*    wordPtr = chinese;
+    while (NULL != wordPtr) {
+        printf("%s\n", wordPtr);
+        if (CHINESE_SUB_CHAR == *wordPtr) {
+            *wordPtr = 0;
+            py_add_index_stringl(pinyinPieces, wordPtr-chinese-splitLen,wordPtr - splitLen, py_strlen(wordPtr - splitLen));
+            splitLen = 0;
+            continue;
+        }
+
+        splitLen++;
+        wordPtr++;
+    }*/
  /*   while (NULL != wordPtr) {
         if (CHINESE_SUB_CHAR == *wordPtr)
             continue;
