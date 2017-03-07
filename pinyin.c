@@ -180,13 +180,15 @@ void py_fill_data_list(const char *dir, unsigned int num)
  * @param chinese
  * @return
  */
-zval *py_split_sentence(char *chinese)
+zval *py_split_sentence(const char *sentence)
 {
     if(PY_GLOBAL(can_access) == false)
     {
         php_error(E_WARNING, "拼音转汉字初始化加载配置文件失败，转化失败！");
         return NULL;
     }
+	
+	char *chinese = estrdup(sentence);
 
     //正常的拼音化
     py_data_list *wordListPtr = PY_GLOBAL(wordList)->next;
@@ -236,6 +238,11 @@ zval *py_split_sentence(char *chinese)
         }
         ++wordPtr;
     }
+	
+	/* 特殊情况：最后一个为非汉字的时候 */
+	if (splitLen > 0) {
+		py_add_index_stringl(pinyinPieces, wordPtr-chinese-splitLen,wordPtr - splitLen, py_strlen(wordPtr - splitLen));
+	}
 
     /* 格式化数组，将汉字切分为单个的一个，去掉制表符 */
     array_init(pinyinSplit);
@@ -250,6 +257,7 @@ zval *py_split_sentence(char *chinese)
     }ZEND_HASH_FOREACH_END();
 
     // TODO 释放pinyinPieces所有占用的内存
+	efree(chinese);
 
     return pinyinSplit;
 }
@@ -310,13 +318,14 @@ PHP_FUNCTION(chinese_to_pinyin)
 {
     char *chinese = NULL;
     size_t len;
-    zend_long l = PINYIN_UNICODE;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &chinese, &len, &l) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &chinese, &len) == FAILURE) {
         return;
     }
 
     printf("%s\n", chinese);
+	//RETURN_TRUE;
+	
 
     zval *pinyinSplit = py_split_sentence(chinese);
     RETVAL_ARR(Z_ARRVAL_P(pinyinSplit));
