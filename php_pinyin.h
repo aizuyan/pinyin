@@ -63,6 +63,7 @@ void py_fill_data_list(const char *dir, unsigned int num);
 void py_analysis_chinese_tones(const char *line, char *chinese, char *tones);
 void str_replace(const char *from, const char *to, char *str, char *ret, zend_bool is_name);
 static int php_array_key_compare(const void *a, const void *b);
+zval *py_split_sentence();
 
 #define MAX_READ_WORD_NUM 10
 #define MAX_FILE_PATH_SIZE 50
@@ -91,6 +92,8 @@ static int php_array_key_compare(const void *a, const void *b);
 
 /* 替换时候原字符串替换符，这个ascii字符1很不常用 */
 #define CHINESE_SUB_CHAR 1
+
+#define SPLIT_PUNCTUATION ",.?!:;\"'，。？！：；“”‘’"
 
 /* 函数封装 */
 #define py_strdup strdup

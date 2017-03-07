@@ -35,7 +35,7 @@
 ZEND_DECLARE_MODULE_GLOBALS(pinyin);
 
 /* 要转换的 字符列表*/
-static py_punctuation_map charTransMap[PY_CHAR_TRANS_MAP_NUM] = {
+static char *charTransMap[PY_CHAR_TRANS_MAP_NUM][2] = {
     {"，", ","},
     {"。", "."},
     {"？", "?"},
@@ -86,7 +86,7 @@ py_data_list *py_data_list_append(py_data_list *last, const char *key, const cha
 {
     if (strlen(key) <= 0 || strlen(value) <= 0)
         return last;
-    py_data_list *element = (py_data_list *)malloc(sizeof(py_data_list));
+    py_data_list *element = (py_data_list *)pemalloc(sizeof(py_data_list), 1);
     element->key = py_strdup(key);
     element->val = py_strdup(value);
     element->next = NULL;
@@ -145,7 +145,6 @@ void py_fill_data_list(const char *dir, unsigned int num)
 
     FILE *fp;
     sprintf(filePath, FORMAT_SURNAME_PATH, dir);
-   // printf("%s\n", filePath);
     py_data_list *last = PY_GLOBAL(surnameList);
     if(0 == access(filePath, ACCESS_MODE_EXISTS))
     {
@@ -163,7 +162,6 @@ void py_fill_data_list(const char *dir, unsigned int num)
     for(; i<MAX_READ_WORD_NUM; i++)
     {
         sprintf(filePath, FORMAT_WORD_PATH, dir, i);
-     //   printf("%s\n", filePath);
         if(0 != access(filePath, ACCESS_MODE_EXISTS))
             continue;
         fp  = fopen(filePath, "r");
@@ -177,33 +175,84 @@ void py_fill_data_list(const char *dir, unsigned int num)
     }
 }
 
-// 替换字符串中的所有子字符串
-/*
-void str_replace(const char *from, const char *to, char *str, char *ret, zend_bool is_name)
+/**
+ *
+ * @param chinese
+ * @return
+ */
+zval *py_split_sentence(char *chinese)
 {
-    int pos = 0,
-        fromLen = strlen(from),
-		flag = 0;
-    char *tmp = NULL,
-		 *strTmp = str;
-    while(tmp = strstr(str, from))
-    {   
-        pos = tmp - str;
-        strncat(ret, str, pos);
-        strcat(ret, to);
-        str = tmp + fromLen;
-		flag = 1;
-        if(is_name)
-            break;
-    }   
+    if(PY_GLOBAL(can_access) == false)
+    {
+        php_error(E_WARNING, "拼音转汉字初始化加载配置文件失败，转化失败！");
+        return NULL;
+    }
 
-    strcat(ret, str);
-	if(1 == flag)
-	{
-		memcpy(strTmp, ret, strlen(ret));
-		strTmp[strlen(ret)] = '\0';
-	}
-}*/
+    //正常的拼音化
+    py_data_list *wordListPtr = PY_GLOBAL(wordList)->next;
+    char *wordPtr = NULL,
+            *splitItem = NULL;
+    size_t splitLen = 0,
+            i = 0;
+    zend_ulong numKey;
+    zval *entry;
+    zval *pinyinPieces = (zval *)emalloc(sizeof(zval));
+    zval *pinyinSplit = (zval *)emalloc(sizeof(zval));
+
+    array_init(pinyinPieces);
+    while(wordListPtr != NULL)
+    {
+        while (NULL != (wordPtr = py_strstr(chinese, wordListPtr->key))) {
+            py_add_index_stringl(pinyinPieces, wordPtr-chinese, wordListPtr->val, py_strlen(wordListPtr->val));
+            memset(wordPtr, CHINESE_SUB_CHAR, py_strlen(wordListPtr->key));
+        }
+        wordListPtr = wordListPtr->next;
+    }
+
+    /* 切分标点符号 */
+    wordPtr = chinese;
+    for (; i<PY_CHAR_TRANS_MAP_NUM; i++) {
+        while (NULL != (wordPtr = py_strstr(chinese, charTransMap[i][0]))) {
+            py_add_index_stringl(pinyinPieces, wordPtr-chinese, charTransMap[i][0], py_strlen(charTransMap[i][0]));
+            memset(wordPtr, CHINESE_SUB_CHAR, py_strlen(charTransMap[i][0]));
+        }
+        while (NULL != (wordPtr = py_strstr(chinese, charTransMap[i][1]))) {
+            py_add_index_stringl(pinyinPieces, wordPtr-chinese, charTransMap[i][1], py_strlen(charTransMap[i][1]));
+            memset(wordPtr, CHINESE_SUB_CHAR, py_strlen(charTransMap[i][1]));
+        }
+    }
+
+    /* 切分非标点符号和汉字 */
+    wordPtr = chinese;
+    while (*wordPtr) {
+        if (CHINESE_SUB_CHAR == *wordPtr) {
+            if (splitLen > 0) {
+                *wordPtr = 0;
+                py_add_index_stringl(pinyinPieces, wordPtr-chinese-splitLen,wordPtr - splitLen, py_strlen(wordPtr - splitLen));
+            }
+            splitLen = 0;
+        } else {
+            splitLen++;
+        }
+        ++wordPtr;
+    }
+
+    /* 格式化数组，将汉字切分为单个的一个，去掉制表符 */
+    array_init(pinyinSplit);
+    zend_hash_sort(Z_ARRVAL_P(pinyinPieces), php_array_key_compare, 0);
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(pinyinPieces), entry){
+        splitItem = strtok(Z_STRVAL_P(entry), "\t");
+        py_add_next_index_string(pinyinSplit, splitItem, 1);
+        while((splitItem = strtok(NULL, "\t")))
+        {
+            py_add_next_index_string(pinyinSplit, splitItem, 1);
+        }
+    }ZEND_HASH_FOREACH_END();
+
+    // TODO 释放pinyinPieces所有占用的内存
+
+    return pinyinSplit;
+}
 
 PHP_INI_BEGIN()
     PHP_INI_ENTRY("pinyin.dir", "", PHP_INI_SYSTEM, NULL)
@@ -267,162 +316,10 @@ PHP_FUNCTION(chinese_to_pinyin)
         return;
     }
 
-    if(PY_GLOBAL(can_access) == false)
-    {
-        php_error(E_WARNING, "拼音转汉字初始化加载配置文件失败，转化失败！");
-        RETURN_FALSE;
-    }
+    printf("%s\n", chinese);
 
-    //正常的拼音化
-    py_data_list *wordListPtr = PY_GLOBAL(wordList)->next;
-    char *wordPtr = NULL;
-    size_t splitLen = 0;
-    zval *pinyinPieces = (zval *)malloc(sizeof(zval));
-    array_init(pinyinPieces);
-    while(wordListPtr != NULL)
-    {
-        wordPtr = py_strstr(chinese, wordListPtr->key);
-        if (NULL != wordPtr) {
-            py_add_index_stringl(pinyinPieces, wordPtr-chinese, wordListPtr->val, py_strlen(wordListPtr->val));
-            memset(wordPtr, CHINESE_SUB_CHAR, py_strlen(wordListPtr->key));
-            printf("%s\n", chinese);
-        }
-        wordListPtr = wordListPtr->next;
-    }
-
-    wordPtr = chinese;
-    while (*wordPtr) {
-        printf("%s\n", wordPtr);
-        if (CHINESE_SUB_CHAR == *wordPtr) {
-            if (splitLen > 0) {
-                *wordPtr = 0;
-                py_add_index_stringl(pinyinPieces, wordPtr-chinese-splitLen,wordPtr - splitLen, py_strlen(wordPtr - splitLen));
-            }
-            splitLen = 0;
-        } else {
-            splitLen++;
-        }
-        ++wordPtr;
-    }
-zend_hash_sort(Z_ARRVAL_P(pinyinPieces), php_array_key_compare, 0);
-
-RETVAL_ARR(Z_ARRVAL_P(pinyinPieces));
-
-    /* chinese中的非汉字字符挑出来 */
-/*    wordPtr = chinese;
-    while (NULL != wordPtr) {
-        printf("%s\n", wordPtr);
-        if (CHINESE_SUB_CHAR == *wordPtr) {
-            *wordPtr = 0;
-            py_add_index_stringl(pinyinPieces, wordPtr-chinese-splitLen,wordPtr - splitLen, py_strlen(wordPtr - splitLen));
-            splitLen = 0;
-            continue;
-        }
-
-        splitLen++;
-        wordPtr++;
-    }*/
- /*   while (NULL != wordPtr) {
-        if (CHINESE_SUB_CHAR == *wordPtr)
-            continue;
-
-    }*/
-
-    //printf("###%s###", ZSTR_VAL(chineseTmp));
-
-    //printf("@@@\n%s\n@@@\n", chinese);
-    zend_hash_sort(Z_ARRVAL_P(pinyinPieces), php_array_key_compare, 0);
-
-    RETVAL_ARR(Z_ARRVAL_P(pinyinPieces));
-/*
-	int alloc_len = arg_len * 4 + 1;
-	char *ret = (char *)emalloc(alloc_len),
-		 *oldMessage = (char *)emalloc(alloc_len),
-         char_str[MAX_PUNCTUATION_SIZE];
-	memset(oldMessage, '\0', alloc_len);
-	strcat(oldMessage, arg);
-	strcat(ret, arg);
-    MyList *p_surname = pinyin_globals.mySurnameList->next;
-
-    //去掉标点符号
-    if(l & (PINYIN_TRIM|PINYIN_FORMAT_EN|PINYIN_FORMAT_CH))
-    {
-        int j = 0;
-        for(; j<MY_TRIM_NUM; j++)
-        {
-            if(l & PINYIN_FORMAT_CH)   //仅仅格式化
-            {
-                memset(char_str, '\0', MAX_PUNCTUATION_SIZE);
-                strcat(char_str, "\t");
-                strcat(char_str, punctuations[j].key);
-                memset(ret, '\0', alloc_len);
-                str_replace(punctuations[j].key, char_str, oldMessage, ret, false);   
-                memset(char_str, '\0', MAX_PUNCTUATION_SIZE);
-                strcat(char_str, "\t");
-                strcat(char_str, punctuations[j].key);
-                memset(ret, '\0', alloc_len);
-                str_replace(punctuations[j].val, char_str, oldMessage, ret, false);   
-            }
-            else if(l & PINYIN_FORMAT_EN)   //汉字符号转为英文符号
-            {
-                memset(char_str, '\0', MAX_PUNCTUATION_SIZE);
-                strcat(char_str, punctuations[j].val);
-                memset(ret, '\0', alloc_len);
-                str_replace(punctuations[j].key, char_str, oldMessage, ret, false);   
-                memset(char_str, '\0', MAX_PUNCTUATION_SIZE);
-                strcat(char_str, "\t");
-                strcat(char_str, punctuations[j].val);
-                memset(ret, '\0', alloc_len);
-                str_replace(punctuations[j].val, char_str, oldMessage, ret, false);   
-            }else if(l & PINYIN_TRIM)   //去除标点符号
-            {
-                memset(ret, '\0', alloc_len);
-                str_replace(punctuations[j].key, "", oldMessage, ret, false);   
-                memset(ret, '\0', alloc_len);
-                str_replace(punctuations[j].val, "", oldMessage, ret, false);   
-            }
-        }
-    }
-
-    //如果是名字，先用名字解析
-    if(l & PINYIN_ISNAME)
-    {
-        while(p_surname != NULL)
-        {
-            memset(ret, '\0', alloc_len);
-            str_replace(p_surname->key, p_surname->val, oldMessage, ret, true);
-            p_surname = p_surname->next;
-        }
-    }
-
-    //正常的拼音化
-	MyList *p = pinyin_globals.myList->next;
-	while(p != NULL)
-	{
-		memset(ret, '\0', alloc_len);
-		str_replace(p->key, p->val, oldMessage, ret, false);
-		p = p->next;
-	}
-
-    //如果不需要声调，替换元音字母为正常字母
-    if(l & PINYIN_NONE)
-    {
-        int i = 0;
-        for(; i<MY_TONES_NUM; i++)
-        {
-		    memset(ret, '\0', alloc_len);
-		    str_replace(_myTones[i].key, _myTones[i].val, oldMessage, ret, false);
-        }
-    }
-	array_init(return_value);
-	char *item;
-	item = strtok(ret, "\t");
-    py_add_next_index_string(return_value, item, 1);
-
-	while((item = strtok(NULL, "\t")))
-	{
-        py_add_next_index_string(return_value, item, 1);
-	}*/
+    zval *pinyinSplit = py_split_sentence(chinese);
+    RETVAL_ARR(Z_ARRVAL_P(pinyinSplit));
 }
 
 PHP_MINIT_FUNCTION(pinyin)
@@ -434,9 +331,9 @@ PHP_MINIT_FUNCTION(pinyin)
 
     /* 初始化全局变量 */
     PY_GLOBAL(can_access) = false;
-    PY_GLOBAL(wordList) = (py_data_list *)malloc(sizeof(py_data_list));
+    PY_GLOBAL(wordList) = (py_data_list *)pemalloc(sizeof(py_data_list), 1);
     PY_GLOBAL(wordList)->next = NULL;
-    PY_GLOBAL(surnameList) = (py_data_list *)malloc(sizeof(py_data_list));
+    PY_GLOBAL(surnameList) = (py_data_list *)pemalloc(sizeof(py_data_list), 1);
     PY_GLOBAL(surnameList)->next = NULL;
     pinyinDir = INI_STR("pinyin.dir");
 
@@ -455,43 +352,6 @@ PHP_MINIT_FUNCTION(pinyin)
     REGISTER_LONG_CONSTANT("PINYIN_TRIM", PINYIN_TRIM, CONST_PERSISTENT | CONST_CS);
     REGISTER_LONG_CONSTANT("PINYIN_FORMAT_EN", PINYIN_FORMAT_EN, CONST_PERSISTENT | CONST_CS);
     REGISTER_LONG_CONSTANT("PINYIN_FORMAT_CH", PINYIN_FORMAT_CH, CONST_PERSISTENT | CONST_CS);
-
-    //zval *str;
-   // php_implode(const zend_string *glue, zval *pieces, str);
-    zend_string *glue = zend_string_init(",", 1, 0);
-    zval pieces, *ret_str;
-    ret_str = (zval *)malloc(sizeof(zval));
-    array_init(&pieces);
-    char *test = "hahahah";
-    add_next_index_string(&pieces, test);
-    add_next_index_string(&pieces, "hahah");
-    add_next_index_string(&pieces, "燕睿涛");
-    add_next_index_string(&pieces, "燕睿馨");
-    add_next_index_string(&pieces, "who are");
-    add_next_index_string(&pieces, "yrt");
-    php_implode(glue, &pieces, ret_str);
-//    printf("###%s###\n\n", Z_STR_P(ret_str)->val);
-
-
-    //char *t = php_strtr(sstr, 11, sfrom, sto, 1);
-    //printf("###%s###", t);
-/*
-    zval *search = (zval *)malloc(sizeof(zval));
-    zval *replace = (zval *)malloc(sizeof(zval));
-    zval *subject = (zval *)malloc(sizeof(zval));
-    zval *result = (zval *)malloc(sizeof(zval));
-    Z_STR_P(subject) = zend_string_init("hello world!", 12, 0);
-    Z_STR_P(search) = zend_string_init("h", 1, 0);
-    Z_STR_P(replace) = zend_string_init("Y", 1, 0);
-    php_str_replace_in_subject(search, replace, subject, result, 1);
-    printf("###%s###", Z_STR_P(result)->val);*/
-    char *sstr = "hello world";
-    //char *sfrom = "h";
-    //char *sto = "Y";
-    zend_string *tmp;
-    tmp = php_str_to_str("hello world", 11, "he", 2, "YYYYYY", 6);
-  //  printf("###%s###", tmp->val);
-
 
 	return SUCCESS;
 }
