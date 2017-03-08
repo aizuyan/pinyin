@@ -254,9 +254,9 @@ zval *py_split_sentence(const char *sentence)
             splitItem = strtok(Z_STRVAL_PP(entry), "\t");
         #else
             entry = zend_hash_index_find(Z_ARRVAL_P(pinyinPieces), i);
-            if (NULL != entry) {
-                splitItem = strtok(Z_STRVAL_P(entry), "\t");
-            }
+            if (NULL == entry)
+                continue;
+            splitItem = strtok(Z_STRVAL_P(entry), "\t");
         #endif
         py_add_next_index_string(pinyinSplit, splitItem, 1);
         while((splitItem = strtok(NULL, "\t")))
@@ -282,11 +282,7 @@ PHP_FUNCTION(chinese_to_pinyin)
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &chinese, &len) == FAILURE) {
         return;
     }
-
-    //printf("%s\n", chinese);
-	//RETURN_TRUE;
 	
-
     zval *pinyinSplit = py_split_sentence(chinese);
     #if PHP_MAJOR_VERSION < 7
         array_init(return_value);
