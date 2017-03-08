@@ -25,8 +25,6 @@
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
-#include "ext/standard/php_string.h"
-#include "ext/standard/php_array.h"
 #include "php_pinyin.h"
 
 /* If you declare any globals in php_pinyin.h uncomment this:
