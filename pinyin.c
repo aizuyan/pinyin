@@ -27,7 +27,6 @@
 #include "ext/standard/info.h"
 #include "ext/standard/php_string.h"
 #include "ext/standard/php_array.h"
-#include "ext/standard/php_smart_string.h"
 #include "php_pinyin.h"
 
 /* If you declare any globals in php_pinyin.h uncomment this:
@@ -246,16 +245,17 @@ zval *py_split_sentence(const char *sentence)
 
     /* 格式化数组，将汉字切分为单个的一个，去掉制表符 */
     array_init(pinyinSplit);
-    zend_hash_sort(Z_ARRVAL_P(pinyinPieces), php_array_key_compare, 0);
-    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(pinyinPieces), entry){
+    for (i=0; i<=strlen(sentence); i++) {
+        entry = zend_hash_index_find(Z_ARRVAL_P(pinyinPieces), i);
+        if (NULL == entry)
+            continue;
         splitItem = strtok(Z_STRVAL_P(entry), "\t");
         py_add_next_index_string(pinyinSplit, splitItem, 1);
         while((splitItem = strtok(NULL, "\t")))
         {
             py_add_next_index_string(pinyinSplit, splitItem, 1);
         }
-        // TODO 释放pinyinPieces所有占用的内存
-    }ZEND_HASH_FOREACH_END();
+    }
 
 	efree(chinese);
 
@@ -265,54 +265,6 @@ zval *py_split_sentence(const char *sentence)
 PHP_INI_BEGIN()
     PHP_INI_ENTRY("pinyin.dir", "", PHP_INI_SYSTEM, NULL)
 PHP_INI_END()
-
-/**
- * 从array.c复制过来，源文件中是static
- * 用于排序
- *
- * @param a
- * @param b
- * @return
- */
-static int php_array_key_compare(const void *a, const void *b) /* {{{ */
-{
-    Bucket *f = (Bucket *) a;
-    Bucket *s = (Bucket *) b;
-    zend_uchar t;
-    zend_long l1, l2;
-    double d;
-
-    if (f->key == NULL) {
-        if (s->key == NULL) {
-            return (zend_long)f->h > (zend_long)s->h ? 1 : -1;
-        } else {
-            l1 = (zend_long)f->h;
-            t = is_numeric_string(s->key->val, s->key->len, &l2, &d, 1);
-            if (t == IS_LONG) {
-                /* pass */
-            } else if (t == IS_DOUBLE) {
-                return ZEND_NORMALIZE_BOOL((double)l1 - d);
-            } else {
-                l2 = 0;
-            }
-        }
-    } else {
-        if (s->key) {
-            return zendi_smart_strcmp(f->key, s->key);
-        } else {
-            l2 = (zend_long)s->h;
-            t = is_numeric_string(f->key->val, f->key->len, &l1, &d, 1);
-            if (t == IS_LONG) {
-                /* pass */
-            } else if (t == IS_DOUBLE) {
-                return ZEND_NORMALIZE_BOOL(d - (double)l2);
-            } else {
-                l1 = 0;
-            }
-        }
-    }
-    return l1 > l2 ? 1 : (l1 < l2 ? -1 : 0);
-}
 
 PHP_FUNCTION(chinese_to_pinyin)
 {
