@@ -254,9 +254,9 @@ zval *py_split_sentence(const char *sentence)
         {
             py_add_next_index_string(pinyinSplit, splitItem, 1);
         }
+        // TODO 释放pinyinPieces所有占用的内存
     }ZEND_HASH_FOREACH_END();
 
-    // TODO 释放pinyinPieces所有占用的内存
 	efree(chinese);
 
     return pinyinSplit;
