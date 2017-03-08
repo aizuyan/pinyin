@@ -93,8 +93,6 @@ zval *py_split_sentence(const char *chinese);
 /* 替换时候原字符串替换符，这个ascii字符1很不常用 */
 #define CHINESE_SUB_CHAR 1
 
-#define SPLIT_PUNCTUATION ",.?!:;\"'，。？！：；“”‘’"
-
 /* 函数封装 */
 #define py_strdup strdup
 #define py_strstr strstr

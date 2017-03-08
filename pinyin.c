@@ -194,7 +194,11 @@ zval *py_split_sentence(const char *sentence)
     size_t splitLen = 0,
             i = 0;
     zend_ulong numKey;
+#if PHP_MAJOR_VERSION < 7
+    zval **entry;
+#else
     zval *entry;
+#endif
     zval *pinyinPieces = (zval *)emalloc(sizeof(zval));
     zval *pinyinSplit = (zval *)emalloc(sizeof(zval));
 
@@ -202,7 +206,7 @@ zval *py_split_sentence(const char *sentence)
     while(wordListPtr != NULL)
     {
         while (NULL != (wordPtr = py_strstr(chinese, wordListPtr->key))) {
-            py_add_index_stringl(pinyinPieces, wordPtr-chinese, wordListPtr->val, py_strlen(wordListPtr->val));
+            py_add_index_stringl(pinyinPieces, wordPtr-chinese, wordListPtr->val, py_strlen(wordListPtr->val), 1);
             memset(wordPtr, CHINESE_SUB_CHAR, py_strlen(wordListPtr->key));
         }
         wordListPtr = wordListPtr->next;
@@ -212,11 +216,11 @@ zval *py_split_sentence(const char *sentence)
     wordPtr = chinese;
     for (; i<PY_CHAR_TRANS_MAP_NUM; i++) {
         while (NULL != (wordPtr = py_strstr(chinese, charTransMap[i][0]))) {
-            py_add_index_stringl(pinyinPieces, wordPtr-chinese, charTransMap[i][0], py_strlen(charTransMap[i][0]));
+            py_add_index_stringl(pinyinPieces, wordPtr-chinese, charTransMap[i][0], py_strlen(charTransMap[i][0]), 1);
             memset(wordPtr, CHINESE_SUB_CHAR, py_strlen(charTransMap[i][0]));
         }
         while (NULL != (wordPtr = py_strstr(chinese, charTransMap[i][1]))) {
-            py_add_index_stringl(pinyinPieces, wordPtr-chinese, charTransMap[i][1], py_strlen(charTransMap[i][1]));
+            py_add_index_stringl(pinyinPieces, wordPtr-chinese, charTransMap[i][1], py_strlen(charTransMap[i][1]), 1);
             memset(wordPtr, CHINESE_SUB_CHAR, py_strlen(charTransMap[i][1]));
         }
     }
@@ -227,7 +231,7 @@ zval *py_split_sentence(const char *sentence)
         if (CHINESE_SUB_CHAR == *wordPtr) {
             if (splitLen > 0) {
                 *wordPtr = 0;
-                py_add_index_stringl(pinyinPieces, wordPtr-chinese-splitLen,wordPtr - splitLen, py_strlen(wordPtr - splitLen));
+                py_add_index_stringl(pinyinPieces, wordPtr-chinese-splitLen,wordPtr - splitLen, py_strlen(wordPtr - splitLen), 1);
             }
             splitLen = 0;
         } else {
@@ -238,16 +242,22 @@ zval *py_split_sentence(const char *sentence)
 	
 	/* 特殊情况：最后一个为非汉字的时候 */
 	if (splitLen > 0) {
-		py_add_index_stringl(pinyinPieces, wordPtr-chinese-splitLen,wordPtr - splitLen, py_strlen(wordPtr - splitLen));
+		py_add_index_stringl(pinyinPieces, wordPtr-chinese-splitLen,wordPtr - splitLen, py_strlen(wordPtr - splitLen), 1);
 	}
 
     /* 格式化数组，将汉字切分为单个的一个，去掉制表符 */
     array_init(pinyinSplit);
     for (i=0; i<=strlen(sentence); i++) {
-        entry = zend_hash_index_find(Z_ARRVAL_P(pinyinPieces), i);
-        if (NULL == entry)
-            continue;
-        splitItem = strtok(Z_STRVAL_P(entry), "\t");
+        #if PHP_MAJOR_VERSION < 7
+            if (zend_hash_index_find(Z_ARRVAL_P(pinyinPieces), i, (void**)&entry) == FAILURE || py_strlen(Z_STRVAL_PP(entry)) <= 0)
+                continue;
+            splitItem = strtok(Z_STRVAL_PP(entry), "\t");
+        #else
+            entry = zend_hash_index_find(Z_ARRVAL_P(pinyinPieces), i);
+            if (NULL != entry) {
+                splitItem = strtok(Z_STRVAL_P(entry), "\t");
+            }
+        #endif
         py_add_next_index_string(pinyinSplit, splitItem, 1);
         while((splitItem = strtok(NULL, "\t")))
         {
@@ -273,12 +283,17 @@ PHP_FUNCTION(chinese_to_pinyin)
         return;
     }
 
-    printf("%s\n", chinese);
+    //printf("%s\n", chinese);
 	//RETURN_TRUE;
 	
 
     zval *pinyinSplit = py_split_sentence(chinese);
-    RETVAL_ARR(Z_ARRVAL_P(pinyinSplit));
+    #if PHP_MAJOR_VERSION < 7
+        array_init(return_value);
+        Z_ARRVAL_P(return_value) = Z_ARRVAL_P(pinyinSplit);
+    #else
+        RETVAL_ARR(Z_ARRVAL_P(pinyinSplit));
+    #endif
 }
 
 PHP_MINIT_FUNCTION(pinyin)
