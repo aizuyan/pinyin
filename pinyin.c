@@ -266,6 +266,7 @@ zval *py_split_sentence(const char *sentence)
     }
 
 	efree(chinese);
+    // TODO 释放pinyinPieces中的内存
 
     return pinyinSplit;
 }
@@ -284,12 +285,7 @@ PHP_FUNCTION(chinese_to_pinyin)
     }
 	
     zval *pinyinSplit = py_split_sentence(chinese);
-    #if PHP_MAJOR_VERSION < 7
-        array_init(return_value);
-        Z_ARRVAL_P(return_value) = Z_ARRVAL_P(pinyinSplit);
-    #else
-        RETVAL_ARR(Z_ARRVAL_P(pinyinSplit));
-    #endif
+    PY_RETURN_ARR(Z_ARRVAL_P(pinyinSplit));
 }
 
 PHP_MINIT_FUNCTION(pinyin)
