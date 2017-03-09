@@ -286,7 +286,12 @@ PHP_FUNCTION(chinese_to_pinyin)
     }
 	
     zval *pinyinSplit = py_split_sentence(chinese);
+    //Z_ARRVAL_P(return_value) = Z_ARRVAL_P(pinyinSplit);
+    //Z_TYPE_P(return_value) = IS_ARRAY;
     PY_RETURN_ARR(Z_ARRVAL_P(pinyinSplit));
+   // RETVAL_TRUE;
+    //zend_hash_destroy(Z_ARRVAL_P(pinyinSplit));
+    //efree(Z_ARRVAL_P(pinyinSplit));
     efree(pinyinSplit);
 }
 
