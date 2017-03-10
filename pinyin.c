@@ -251,12 +251,13 @@ zval *py_split_sentence(const char *sentence)
         #if PHP_MAJOR_VERSION < 7
             if (zend_hash_index_find(Z_ARRVAL_P(pinyinPieces), i, (void**)&entry) == FAILURE || py_strlen(Z_STRVAL_PP(entry)) <= 0)
                 continue;
+            splitItem = strtok(Z_STRVAL_PP(entry), "\t");
         #else
             entry = zend_hash_index_find(Z_ARRVAL_P(pinyinPieces), i);
             if (NULL == entry)
                 continue;
+            splitItem = strtok(Z_STRVAL_P(entry), "\t");
         #endif
-        splitItem = strtok(Z_STRVAL_PP(entry), "\t");
         py_add_next_index_string(pinyinSplit, splitItem, 1);
         while((splitItem = strtok(NULL, "\t")))
         {
