@@ -298,9 +298,11 @@ py_row_data_list *py_split_sentence(const char *sentence, size_t flag)
         if (flag & (PINYIN_LCFIRST|PINYIN_UCFIRST)){
             if (NULL != rowDataListTmpPtr->none) {
                 rowDataListTmpPtr->lcfirst = *rowDataListTmpPtr->none;
+                rowDataListTmpPtr->ucfirst = rowDataListTmpPtr->lcfirst - 32;
                 if (!(rowDataListTmpPtr->lcfirst >= 65 && rowDataListTmpPtr->lcfirst <= 90)
                 && !(rowDataListTmpPtr->lcfirst >= 97 && rowDataListTmpPtr->lcfirst <= 122)){
                     rowDataListTmpPtr->lcfirst = 0;
+                    rowDataListTmpPtr->ucfirst = 0;
                 }
             }
         }    
@@ -324,9 +326,11 @@ py_row_data_list *py_split_sentence(const char *sentence, size_t flag)
             if (flag & (PINYIN_LCFIRST|PINYIN_UCFIRST)){
                 if (NULL != rowDataListTmpPtr->none) {
                     rowDataListTmpPtr->lcfirst = *rowDataListTmpPtr->none;
+                    rowDataListTmpPtr->ucfirst = rowDataListTmpPtr->lcfirst - 32;
                     if (!(rowDataListTmpPtr->lcfirst >= 65 && rowDataListTmpPtr->lcfirst <= 90)
                     && !(rowDataListTmpPtr->lcfirst >= 97 && rowDataListTmpPtr->lcfirst <= 122)){
                         rowDataListTmpPtr->lcfirst = 0;
+                        rowDataListTmpPtr->ucfirst = 0;
                     }
                 }
             }   
@@ -363,7 +367,9 @@ PHP_INI_END()
 
 PHP_FUNCTION(pinyin)
 {
-    char *chinese = NULL;
+    char *chinese = NULL,
+        tmp[100] = {0},
+        str[2] = {0};
     size_t len;
     size_t l = PINYIN_UNICODE;
 
@@ -379,6 +385,39 @@ PHP_FUNCTION(pinyin)
     while(rowDataListPtr != NULL) {
         if (l & PINYIN_UNICODE) {
             py_add_next_index_string(return_value, rowDataListPtr->ori, 1);
+        } else if (l & PINYIN_ASCII) {
+            tmp[0] = 0;
+            if (NULL != rowDataListPtr->none){
+                strcat(tmp, rowDataListPtr->none);
+                str[0] = rowDataListPtr->tone + 48;
+                str[1] = 0;
+                strcat(tmp, str);
+                py_add_next_index_string(return_value, tmp, 1);
+            } else {
+                py_add_next_index_string(return_value, rowDataListPtr->ori, 1);
+            }
+        } else if (l & PINYIN_NONE) {
+            if (NULL != rowDataListPtr->none){
+                py_add_next_index_string(return_value, rowDataListPtr->none, 1);
+            } else {
+                py_add_next_index_string(return_value, rowDataListPtr->ori, 1);
+            }
+        } else if (l & PINYIN_UCFIRST) {
+            if (rowDataListPtr->ucfirst > 0){
+                str[0] = rowDataListPtr->ucfirst;
+                str[1] = 0;
+                py_add_next_index_string(return_value, str, 1);
+            } else {
+                py_add_next_index_string(return_value, rowDataListPtr->ori, 1);
+            }
+        } else if (l & PINYIN_LCFIRST) {
+            if (rowDataListPtr->lcfirst > 0){
+                str[0] = rowDataListPtr->lcfirst;
+                str[1] = 0;
+                py_add_next_index_string(return_value, str, 1);
+            } else {
+                py_add_next_index_string(return_value, rowDataListPtr->ori, 1);
+            }
         }
         rowDataListPtr = rowDataListPtr->next;
     }
