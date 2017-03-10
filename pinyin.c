@@ -175,9 +175,10 @@ void py_fill_data_list(const char *dir, unsigned int num)
 /**
  *
  * @param chinese
+ * @param flag
  * @return
  */
-zval *py_split_sentence(const char *sentence)
+py_row_data_list *py_split_sentence(const char *sentence, size_t flag)
 {
     if(PY_GLOBAL(can_access) == false)
     {
@@ -188,11 +189,16 @@ zval *py_split_sentence(const char *sentence)
 	char *chinese = estrdup(sentence);
 
     //正常的拼音化
-    py_data_list *wordListPtr = PY_GLOBAL(wordList)->next;
+    py_data_list *wordListPtr;
     char *wordPtr = NULL,
-            *splitItem = NULL;
+        *splitItem = NULL,
+        *splitItemPtr = NULL,
+        tmpStr[100] = {0};
     size_t splitLen = 0,
-            i = 0;
+            i = 0,
+            j = 0,
+            k = 0,
+            m = 0;
     zend_ulong numKey;
 #if PHP_MAJOR_VERSION < 7
     zval **entry;
@@ -200,9 +206,26 @@ zval *py_split_sentence(const char *sentence)
     zval *entry;
 #endif
     zval *pinyinPieces = (zval *)py_malloc(sizeof(zval), 0);
-    zval *pinyinSplit = (zval *)py_malloc(sizeof(zval), 0);
+    py_row_data_list *rowDataList = (py_row_data_list *)py_malloc(sizeof(py_row_data_list), 0),
+        *rowDataListPtr = rowDataList,
+        *rowDataListTmpPtr = NULL;
 
     array_init(pinyinPieces);
+
+    /* 替换姓名优先 */
+    if (flag & PINYIN_ISNAME) {
+        wordListPtr = PY_GLOBAL(surnameList)->next;
+        while(wordListPtr != NULL)
+        {
+            while (NULL != (wordPtr = py_strstr(chinese, wordListPtr->key))) {
+                py_add_index_stringl(pinyinPieces, wordPtr-chinese, wordListPtr->val, py_strlen(wordListPtr->val), 1);
+                memset(wordPtr, CHINESE_SUB_CHAR, py_strlen(wordListPtr->key));
+            }
+            wordListPtr = wordListPtr->next;
+        }
+    }
+    
+    wordListPtr = PY_GLOBAL(wordList)->next;
     while(wordListPtr != NULL)
     {
         while (NULL != (wordPtr = py_strstr(chinese, wordListPtr->key))) {
@@ -246,7 +269,6 @@ zval *py_split_sentence(const char *sentence)
 	}
 
     /* 格式化数组，将汉字切分为单个的一个，去掉制表符 */
-    array_init(pinyinSplit);
     for (i=0; i<=strlen(sentence); i++) {
         #if PHP_MAJOR_VERSION < 7
             if (zend_hash_index_find(Z_ARRVAL_P(pinyinPieces), i, (void**)&entry) == FAILURE || py_strlen(Z_STRVAL_PP(entry)) <= 0)
@@ -258,10 +280,56 @@ zval *py_split_sentence(const char *sentence)
                 continue;
             splitItem = strtok(Z_STRVAL_P(entry), "\t");
         #endif
-        py_add_next_index_string(pinyinSplit, splitItem, 1);
+        /* 不需要拼音声调 */
+        CREATE_ROW_DATA_ITEM(rowDataListTmpPtr);
+        rowDataListTmpPtr->ori = py_strdup(splitItem, 0);
+        rowDataListPtr->next = rowDataListTmpPtr;
+        rowDataListPtr = rowDataListTmpPtr;
+        if (flag & (PINYIN_NONE|PINYIN_ASCII|PINYIN_LCFIRST|PINYIN_UCFIRST)) {
+            for(m=0 ; m<PY_TONE_INFO_NUM; m++) {
+                if (NULL != (wordPtr=py_strstr(splitItem, toneInfos[m].complete))){
+                    CHANGE_STR(tmpStr, splitItem, wordPtr, toneInfos[m].complete, toneInfos[m].simple, j, k);
+                    rowDataListTmpPtr->none = py_strdup(tmpStr, 0);
+                    rowDataListTmpPtr->tone = toneInfos[m].tone;
+                    break;
+                }
+            }
+        }
+        if (flag & (PINYIN_LCFIRST|PINYIN_UCFIRST)){
+            if (NULL != rowDataListTmpPtr->none) {
+                rowDataListTmpPtr->lcfirst = *rowDataListTmpPtr->none;
+                if (!(rowDataListTmpPtr->lcfirst >= 65 && rowDataListTmpPtr->lcfirst <= 90)
+                && !(rowDataListTmpPtr->lcfirst >= 97 && rowDataListTmpPtr->lcfirst <= 122)){
+                    rowDataListTmpPtr->lcfirst = 0;
+                }
+            }
+        }    
+
         while((splitItem = strtok(NULL, "\t")))
         {
-            py_add_next_index_string(pinyinSplit, splitItem, 1);
+            CREATE_ROW_DATA_ITEM(rowDataListTmpPtr);
+            rowDataListTmpPtr->ori = py_strdup(splitItem, 0);
+            rowDataListPtr->next = rowDataListTmpPtr;
+            rowDataListPtr = rowDataListTmpPtr;      
+            if (flag & (PINYIN_NONE|PINYIN_ASCII|PINYIN_LCFIRST|PINYIN_UCFIRST)) {
+                for(m=0 ; m<PY_TONE_INFO_NUM; m++) {
+                    if (NULL != (wordPtr=py_strstr(splitItem, toneInfos[m].complete))){
+                        CHANGE_STR(tmpStr, splitItem, wordPtr, toneInfos[m].complete, toneInfos[m].simple, j, k);
+                        rowDataListTmpPtr->none = py_strdup(tmpStr, 0);
+                        rowDataListTmpPtr->tone = toneInfos[m].tone;
+                        break;
+                    }
+                }
+            }         
+            if (flag & (PINYIN_LCFIRST|PINYIN_UCFIRST)){
+                if (NULL != rowDataListTmpPtr->none) {
+                    rowDataListTmpPtr->lcfirst = *rowDataListTmpPtr->none;
+                    if (!(rowDataListTmpPtr->lcfirst >= 65 && rowDataListTmpPtr->lcfirst <= 90)
+                    && !(rowDataListTmpPtr->lcfirst >= 97 && rowDataListTmpPtr->lcfirst <= 122)){
+                        rowDataListTmpPtr->lcfirst = 0;
+                    }
+                }
+            }   
         }
     }
 
@@ -270,7 +338,23 @@ zval *py_split_sentence(const char *sentence)
     efree(Z_ARRVAL_P(pinyinPieces));
     efree(pinyinPieces);
 
-    return pinyinSplit;
+    return rowDataList;
+}
+
+void py_destory_row_list(py_row_data_list *list)
+{
+    py_row_data_list *ptr = list->next,
+        *tmp = NULL;
+    while (ptr != NULL) {
+        if (NULL != ptr->ori)
+            efree(ptr->ori);
+        if (NULL != ptr->none)
+            efree(ptr->none);
+        tmp = ptr->next;
+        efree(ptr);
+        ptr = tmp;
+    }
+    efree(list);
 }
 
 PHP_INI_BEGIN()
@@ -281,14 +365,24 @@ PHP_FUNCTION(pinyin)
 {
     char *chinese = NULL;
     size_t len;
+    size_t l = PINYIN_UNICODE;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &chinese, &len) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &chinese, &len, &l) == FAILURE) {
         return;
     }
 	
-    zval *pinyinSplit = py_split_sentence(chinese);
-    PY_RETURN_ARR(Z_ARRVAL_P(pinyinSplit));
-    efree(pinyinSplit);
+    py_row_data_list *list = py_split_sentence(chinese, l),
+        *rowDataListPtr;
+
+    array_init(return_value);
+    rowDataListPtr = list->next;
+    while(rowDataListPtr != NULL) {
+        if (l & PINYIN_UNICODE) {
+            py_add_next_index_string(return_value, rowDataListPtr->ori, 1);
+        }
+        rowDataListPtr = rowDataListPtr->next;
+    }
+    py_destory_row_list(list);
 }
 
 PHP_MINIT_FUNCTION(pinyin)
@@ -318,9 +412,9 @@ PHP_MINIT_FUNCTION(pinyin)
     REGISTER_LONG_CONSTANT("PINYIN_NONE", PINYIN_NONE, CONST_PERSISTENT | CONST_CS);
     REGISTER_LONG_CONSTANT("PINYIN_UNICODE", PINYIN_UNICODE, CONST_PERSISTENT | CONST_CS);
     REGISTER_LONG_CONSTANT("PINYIN_ISNAME", PINYIN_ISNAME, CONST_PERSISTENT | CONST_CS);
-    REGISTER_LONG_CONSTANT("PINYIN_TRIM", PINYIN_TRIM, CONST_PERSISTENT | CONST_CS);
-    REGISTER_LONG_CONSTANT("PINYIN_FORMAT_EN", PINYIN_FORMAT_EN, CONST_PERSISTENT | CONST_CS);
-    REGISTER_LONG_CONSTANT("PINYIN_FORMAT_CH", PINYIN_FORMAT_CH, CONST_PERSISTENT | CONST_CS);
+    REGISTER_LONG_CONSTANT("PINYIN_ASCII", PINYIN_ASCII, CONST_PERSISTENT | CONST_CS);
+    REGISTER_LONG_CONSTANT("PINYIN_UCFIRST", PINYIN_UCFIRST, CONST_PERSISTENT | CONST_CS);
+    REGISTER_LONG_CONSTANT("PINYIN_LCFIRST", PINYIN_LCFIRST, CONST_PERSISTENT | CONST_CS);
 
 	return SUCCESS;
 }

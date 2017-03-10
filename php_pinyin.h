@@ -39,7 +39,7 @@ typedef struct
 {
     char *complete;
     char *simple;
-    unsigned int tone;
+    size_t tone;
 } py_tone_info;
 
 typedef struct
@@ -48,6 +48,42 @@ typedef struct
     char *to;
 } py_punctuation_map;
 
+/* 存储一次处理的数据，包括原始拼音，不带音调的拼音，首字母大消息，声调数字 */
+typedef struct _py_row_data_list
+{
+    char *ori;
+    char *none;
+    char ucfirst;
+    char lcfirst;
+    size_t tone;
+    struct _py_row_data_list *next;
+} py_row_data_list;
+
+#define CREATE_ROW_DATA_ITEM(ptr) \
+    ptr = (py_row_data_list *)py_malloc(sizeof(py_row_data_list), 0); \
+    ptr->ori = NULL; \
+    ptr->none = NULL; \
+    ptr->ucfirst = 0; \
+    ptr->lcfirst = 0; \
+    ptr->tone = 0; \
+    ptr->next = NULL;
+
+#define CHANGE_STR(ret, ori, beginPtr, from, to, j, k) do{ \
+        for (j=0; j <(beginPtr-ori); j++) { \
+            ret[j] = ori[j]; \
+        } \
+        for (k=0; k<py_strlen(to); k++){ \
+            ret[j] = to[k]; \
+            j++; \
+        } \
+        beginPtr += py_strlen(from); \
+        while (*beginPtr) { \
+            ret[j] = *beginPtr; \
+            beginPtr++; \
+            j++; \
+        } \
+        ret[j] = 0; \
+    }while(0)
 
 ZEND_BEGIN_MODULE_GLOBALS(pinyin)
     py_data_list *wordList;
@@ -61,7 +97,8 @@ void py_fill_data_list(const char *dir, unsigned int num);
 void py_analysis_chinese_tones(const char *line, char *chinese, char *tones);
 void str_replace(const char *from, const char *to, char *str, char *ret, zend_bool is_name);
 static int php_array_key_compare(const void *a, const void *b);
-zval *py_split_sentence(const char *chinese);
+py_row_data_list *py_split_sentence(const char *chinese, size_t flag);
+void py_destory_row_list(py_row_data_list *list);
 
 #define MAX_READ_WORD_NUM 10
 #define true 1
@@ -69,13 +106,13 @@ zval *py_split_sentence(const char *chinese);
 #define PY_TONE_INFO_NUM 28
 #define PY_CHAR_TRANS_MAP_NUM 10
 
-//用到的几个常量
+/* 转化时候的优化项 */
 #define PINYIN_NONE (1<<0)
 #define PINYIN_UNICODE (1<<1)
 #define PINYIN_ISNAME (1<<2)
-#define PINYIN_TRIM (1<<3)  //省略标点符号
-#define PINYIN_FORMAT_EN (1<<4)    //将标点符号转为英文的
-#define PINYIN_FORMAT_CH (1<<5)    //将表单符号分割为一个
+#define PINYIN_ASCII (1<<3)
+#define PINYIN_UCFIRST (1<<4)
+#define PINYIN_LCFIRST (1<<5)
 
 /* 保存数据的文件名 */
 #define FORMAT_WORD_PATH "%swords_%d"
@@ -92,6 +129,7 @@ zval *py_split_sentence(const char *chinese);
 #define py_strstr strstr
 #define py_malloc(size, persistent) pemalloc(size, persistent)
 #define py_strlen strlen
+#define py_memcpy memcpy
 
 #define PY_GLOBAL(v) (pinyin_globals.v)
 
