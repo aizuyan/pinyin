@@ -22,13 +22,11 @@
 #define PHP_PINYIN_H
 
 extern zend_module_entry pinyin_module_entry;
-#define phpext_pinyin_ptr &pinyin_module_entry
 
-#define PHP_PINYIN_VERSION "0.1.0" /* Replace with version number for your extension */
+#define PHP_PINYIN_VERSION "0.2.0" /* Replace with version number for your extension */
 
 PHP_MINIT_FUNCTION(pinyin);
 PHP_MSHUTDOWN_FUNCTION(pinyin);
-ZEND_FUNCTION(my_test);
 
 typedef struct _py_data_list
 {
@@ -66,14 +64,10 @@ static int php_array_key_compare(const void *a, const void *b);
 zval *py_split_sentence(const char *chinese);
 
 #define MAX_READ_WORD_NUM 10
-#define MAX_FILE_PATH_SIZE 50
-#define MAX_WORD_LINE_SIZE 100
-#define MAX_WORD_WORD_SIZE 50
 #define true 1
 #define false 0
 #define PY_TONE_INFO_NUM 28
 #define PY_CHAR_TRANS_MAP_NUM 10
-#define MAX_PUNCTUATION_SIZE 10
 
 //用到的几个常量
 #define PINYIN_NONE (1<<0)
@@ -84,8 +78,8 @@ zval *py_split_sentence(const char *chinese);
 #define PINYIN_FORMAT_CH (1<<5)    //将表单符号分割为一个
 
 /* 保存数据的文件名 */
-#define FORMAT_WORD_PATH "%swords_%d\0"
-#define FORMAT_SURNAME_PATH "%ssurnames\0"
+#define FORMAT_WORD_PATH "%swords_%d"
+#define FORMAT_SURNAME_PATH "%ssurnames"
 
 /* 检测文件是否存在的mode */
 #define ACCESS_MODE_EXISTS 0
@@ -94,9 +88,9 @@ zval *py_split_sentence(const char *chinese);
 #define CHINESE_SUB_CHAR 1
 
 /* 函数封装 */
-#define py_strdup strdup
+#define py_strdup(s, persistent) pestrdup(s, persistent)
 #define py_strstr strstr
-#define py_malloc malloc
+#define py_malloc(size, persistent) pemalloc(size, persistent)
 #define py_strlen strlen
 
 #define PY_GLOBAL(v) (pinyin_globals.v)

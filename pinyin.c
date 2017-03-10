@@ -83,9 +83,9 @@ py_data_list *py_data_list_append(py_data_list *last, const char *key, const cha
 {
     if (strlen(key) <= 0 || strlen(value) <= 0)
         return last;
-    py_data_list *element = (py_data_list *)pemalloc(sizeof(py_data_list), 1);
-    element->key = py_strdup(key);
-    element->val = py_strdup(value);
+    py_data_list *element = (py_data_list *)py_malloc(sizeof(py_data_list), 1);
+    element->key = py_strdup(key, 1);
+    element->val = py_strdup(value, 1);
     element->next = NULL;
     last->next = element;
 
@@ -199,8 +199,8 @@ zval *py_split_sentence(const char *sentence)
 #else
     zval *entry;
 #endif
-    zval *pinyinPieces = (zval *)emalloc(sizeof(zval));
-    zval *pinyinSplit = (zval *)emalloc(sizeof(zval));
+    zval *pinyinPieces = (zval *)py_malloc(sizeof(zval), 0);
+    zval *pinyinSplit = (zval *)py_malloc(sizeof(zval), 0);
 
     array_init(pinyinPieces);
     while(wordListPtr != NULL)
@@ -277,7 +277,7 @@ PHP_INI_BEGIN()
     PHP_INI_ENTRY("pinyin.dir", "", PHP_INI_SYSTEM, NULL)
 PHP_INI_END()
 
-PHP_FUNCTION(chinese_to_pinyin)
+PHP_FUNCTION(pinyin)
 {
     char *chinese = NULL;
     size_t len;
@@ -287,12 +287,7 @@ PHP_FUNCTION(chinese_to_pinyin)
     }
 	
     zval *pinyinSplit = py_split_sentence(chinese);
-    //Z_ARRVAL_P(return_value) = Z_ARRVAL_P(pinyinSplit);
-    //Z_TYPE_P(return_value) = IS_ARRAY;
     PY_RETURN_ARR(Z_ARRVAL_P(pinyinSplit));
-   // RETVAL_TRUE;
-    //zend_hash_destroy(Z_ARRVAL_P(pinyinSplit));
-    //efree(Z_ARRVAL_P(pinyinSplit));
     efree(pinyinSplit);
 }
 
@@ -305,9 +300,9 @@ PHP_MINIT_FUNCTION(pinyin)
 
     /* 初始化全局变量 */
     PY_GLOBAL(can_access) = false;
-    PY_GLOBAL(wordList) = (py_data_list *)pemalloc(sizeof(py_data_list), 1);
+    PY_GLOBAL(wordList) = (py_data_list *)py_malloc(sizeof(py_data_list), 1);
     PY_GLOBAL(wordList)->next = NULL;
-    PY_GLOBAL(surnameList) = (py_data_list *)pemalloc(sizeof(py_data_list), 1);
+    PY_GLOBAL(surnameList) = (py_data_list *)py_malloc(sizeof(py_data_list), 1);
     PY_GLOBAL(surnameList)->next = NULL;
     pinyinDir = INI_STR("pinyin.dir");
 
@@ -386,7 +381,7 @@ PHP_MINFO_FUNCTION(pinyin)
 }
 
 const zend_function_entry pinyin_functions[] = {
-	PHP_FE(chinese_to_pinyin,	NULL)		/* For testing, remove later. */
+	PHP_FE(pinyin,	NULL)		/* For testing, remove later. */
 	PHP_FE_END	/* Must be the last line in pinyin_functions[] */
 };
 /* }}} */
