@@ -420,7 +420,7 @@ PHP_FUNCTION(pinyin)
     array_init(return_value);
     rowDataListPtr = list->next;
     while(rowDataListPtr != NULL) {
-        if (l & PINYIN_UNICODE) {
+        if (l & (PINYIN_UNICODE|PINYIN_ISNAME)) {
             py_add_next_index_string(return_value, rowDataListPtr->ori, 1);
         } else if (l & PINYIN_ASCII) {
             tmp[0] = 0;

@@ -65,17 +65,15 @@ echo "最大使用内存【".memory_get_peak_usage(true)."bytes】";
 分析下，因为我这个使用的是 fast-cgi 模式，模块初始化的时候已经将拼音汉字相关数据载入内存，所以查询起来很快，不用每次去加载一遍数据
 
 ### 使用
-这里用了最简洁的方式，用了一个函数 `chinese_to_pinyin(char *str, int flags)`，根据不同的参数，转换为不用的形式
+这里用了最简洁的方式，用了一个函数 `pinyin(char *str, int flags)`，根据不同的参数，转换为不用的形式
 > PINYIN_NONE    拼音不加音调
 > PINYIN_UNICODE    拼音加音调
+> PINYIN_ASCII      音标以数字形式
 > PINYIN_ISNAME     要转化的内容为名字
-> PINYIN_TRIM       简洁模式，去掉所有的标点符号
-> PINYIN_FORMAT_EN  将标点符号全转化为英文格式
-> PINYIN_FORMAT_CH     将标点符号全转化中文格式
 
 #### PINYIN_NONE 不带音调
 ```php
-print_r(chinese_to_pinyin("你因为穷用盗版的时候至少要知道自己是不对的，这说明你还有救。", PINYIN_NONE));
+print_r(pinyin("你因为穷用盗版的时候至少要知道自己是不对的，这说明你还有救。", PINYIN_NONE));
 ```
 输出结果：
 
@@ -113,49 +111,9 @@ Array
 )
 ```
 
-#### 不带音调和格式化标点符号
+#### 带音调
 ```php
-print_r(chinese_to_pinyin("你因为穷用盗版的时候至少要知道自己是不对的，这说明你还有救。", PINYIN_NONE|PINYIN_TRIM));
-```
-
-结果如下，可以看出标点符号全过滤掉了
-```
-Array
-(
-    [0] => ni
-    [1] => yin
-    [2] => wei
-    [3] => qiong
-    [4] => yong
-    [5] => dao
-    [6] => ban
-    [7] => de
-    [8] => shi
-    [9] => hou
-    [10] => zhi
-    [11] => shao
-    [12] => yao
-    [13] => zhi
-    [14] => dao
-    [15] => zi
-    [16] => ji
-    [17] => shi
-    [18] => bu
-    [19] => dui
-    [20] => de
-    [21] => zhe
-    [22] => shuo
-    [23] => ming
-    [24] => ni
-    [25] => hai
-    [26] => you
-    [27] => jiu
-)
-```
-
-#### 带音调和格式化标点
-```php
-print_r(chinese_to_pinyin("你因为穷用盗版的时候至少要知道自己是不对的，这说明你还有救。", PINYIN_UNICODE|PINYIN_FORMAT_CH));
+print_r(pinyin("你因为穷用盗版的时候至少要知道自己是不对的，这说明你还有救。", PINYIN_UNICODE));
 ```
 
 输出结果如下，标点符号也输出了
@@ -198,10 +156,10 @@ Array
 #### 姓名
 这里使用了几个朋友的名称（比较有特色的名字）
 ```php
-print_r(chinese_to_pinyin("冼佩君", PINYIN_ISNAME));
-print_r(chinese_to_pinyin("袁旭东", PINYIN_ISNAME));
-print_r(chinese_to_pinyin("燕睿涛", PINYIN_ISNAME));
-print_r(chinese_to_pinyin("单净净", PINYIN_ISNAME));
+print_r(pinyin("冼佩君", PINYIN_ISNAME));
+print_r(pinyin("袁旭东", PINYIN_ISNAME));
+print_r(pinyin("燕睿涛", PINYIN_ISNAME));
+print_r(pinyin("单净净", PINYIN_ISNAME));
 ```
 
 ```
