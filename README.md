@@ -14,56 +14,6 @@ fcgi 模式常驻内存，速度很快
 
 配置数据文件在当前项目的 `datas/` 目录下面。
 
-### 性能测试
-这个PHP扩展大部分思路来自[https://github.com/overtrue/pinyin](https://github.com/overtrue/pinyin)这个项目，所以做个性能比对
-
-下面是使用overtrue版本的：
-```php
-<?php
-set_time_limit(0);
-$s = microtime(true);
-require "vendor/autoload.php";
-use Overtrue\Pinyin\Pinyin;
-
-$pinyin = new Pinyin();
-$i = 0;
-while($i < 1000) {
-        $ret = $pinyin->convert("带着希望去旅行，比到达终点更美好");
-            echo implode("-", $ret). "<br>";
-                $i++;
-}
-$e = microtime(true);
-
-echo "使用时间【".($e - $s). "】s";
-echo "最大使用内存【".memory_get_peak_usage(true)."bytes】";
-```
-
-下面是使用扩展的版本的
-```php
-<?php
-set_time_limit(0);
-$s = microtime(true);
-$i = 0;
-while($i < 1000) {
-        $ret = chinese_to_pinyin("带着希望去旅行，比到达终点更美好", PINYIN_UNICODE);
-            echo implode("-", $ret). "<br>";
-                $i++;
-}
-$e = microtime(true);
-
-echo "使用时间【".($e - $s). "】s";
-echo "最大使用内存【".memory_get_peak_usage(true)."bytes】";
-```
-
-结果：
-
-|      项目         | 耗时   | 占用内存峰值 |   备注                             |
-| -------------     | -------| ------------ | ---------------------------------  |
-| overtrue/pinyin   | 90.12s |  8.5MB       |                                    |
-| aizuyan/pinyin    | 2.97s  |  0.75MB      | 模块初始化的时候已经加载了所有数据 |
-
-分析下，因为我这个使用的是 fast-cgi 模式，模块初始化的时候已经将拼音汉字相关数据载入内存，所以查询起来很快，不用每次去加载一遍数据
-
 ### 使用
 这里用了最简洁的方式，用了一个函数 `pinyin(char *str, int flags)`，根据不同的参数，转换为不用的形式
 > PINYIN_NONE    拼音不加音调
