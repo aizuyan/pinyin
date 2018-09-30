@@ -1,3 +1,5 @@
+已不再维护
+
 # pinyin
 php 汉字转 pinyin 扩展形式的
 
